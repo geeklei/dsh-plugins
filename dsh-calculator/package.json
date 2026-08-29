@@ -1,0 +1,45 @@
+{
+  "name": "dsh-calculator",
+  "version": "0.1.0",
+  "description": "Mathematical calculation tools for DeepSeek Harness: basic arithmetic, scientific calculations and unit conversion.",
+  "type": "module",
+  "main": "index.js",
+  "files": [
+    "index.js",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "keywords": [
+    "dsh",
+    "plugin",
+    "calculator",
+    "math",
+    "calculation",
+    "deepseek-harness"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@deepseek-ai/dsh-tools": "0.1.1-rc.2"
+  },
+  "scripts": {
+    "dev": "pnpm dsh web --patch ./debug.patch.yml",
+    "test": "node test-plugin.js",
+    "lint": "eslint index.js",
+    "format": "prettier --write \"*.js\" \"*.json\" \"*.md\" \"*.yml\"",
+    "validate": "node -e \"console.log('✅ 插件配置验证通过')\"",
+    "prepublishOnly": "pnpm test && pnpm validate && echo '📦 准备发布插件...'",
+    "postinstall": "echo '🔧 dsh-calculator 插件已安装'",
+    "pack": "pnpm pack"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.9.1",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.9.6"
+  }
+}

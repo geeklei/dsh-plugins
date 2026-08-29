@@ -1,0 +1,39 @@
+{
+  "name": "dsh-text-stats",
+  "version": "0.1.1",
+  "description": "Text statistics tool for DeepSeek Harness: characters, lines, words and token estimation.",
+  "type": "module",
+  "main": "index.js",
+  "files": [
+    "index.js",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "keywords": [
+    "dsh",
+    "plugin",
+    "tools",
+    "deepseek-harness"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@deepseek-ai/dsh-tools": "0.1.1-rc.2"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "scripts": {
+    "test": "node verify-hooks.mjs",
+    "prepack": "npm test",
+    "prepublishOnly": "npm test",
+    "pack": "pnpm pack",
+    "publish": "pnpm publish"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org",
+    "tag": "latest"
+  }
+}

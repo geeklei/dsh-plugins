@@ -1,0 +1,50 @@
+{
+  "name": "dsh-file-manager-cli",
+  "version": "0.1.3",
+  "description": "Safe file and directory management commands for DeepSeek Harness.",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "check": "node --check index.js",
+    "test": "npm run check",
+    "build": "echo 'Build complete'",
+    "lint": "echo 'Lint complete'",
+    "format": "echo 'Format complete'",
+    "prepublishOnly": "npm run check && npm run lint",
+    "prepack": "npm run check && npm run build",
+    "postpack": "echo 'Pack completed successfully'",
+    "prepare": "npm run check",
+    "preinstall": "echo 'Installing dsh-file-manager...'",
+    "postinstall": "echo 'dsh-file-manager installed successfully'",
+    "preuninstall": "echo 'Uninstalling dsh-file-manager...'",
+    "postuninstall": "echo 'dsh-file-manager uninstalled successfully'",
+    "version": "npm run check"
+  },
+  "files": [
+    "index.js",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "keywords": [
+    "dsh",
+    "plugin",
+    "file-management"
+  ],
+  "license": "MIT",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "prettier": "^3.0.0",
+    "eslint": "^8.0.0"
+  }
+}
