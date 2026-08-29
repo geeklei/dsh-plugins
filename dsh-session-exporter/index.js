@@ -6,6 +6,55 @@
 
 export const name = 'dsh-session-exporter';
 
+/**
+ * 导出会话内容的主函数
+ * @param {Object} options - 导出选项
+ * @param {Object} options.ctx - dsh 上下文对象
+ * @param {string} options.format - 导出格式（json|markdown|txt|html）
+ * @param {string} [options.outputPath] - 输出文件路径（可选）
+ * @param {boolean} [options.includeMetadata=true] - 是否包含元数据
+ * @param {boolean} [options.includeTimestamps=true] - 是否包含时间戳
+ * @param {boolean} [options.sanitize=true] - 是否清理敏感信息
+ * @returns {Promise<string>} 导出的内容
+ */
+export async function exportSession(options) {
+  const {
+    ctx,
+    format = 'json',
+    outputPath,
+    includeMetadata = true,
+    includeTimestamps = true,
+    sanitize = true
+  } = options;
+
+  try {
+    // 收集会话数据
+    const data = await collectSessionData(ctx, includeMetadata, includeTimestamps, sanitize);
+
+    // 格式化内容
+    const content = formatSessionData(data, format, includeMetadata, includeTimestamps);
+
+    // 如果指定了输出路径，写入文件
+    if (outputPath) {
+      const fs = await import('fs');
+      const path = await import('path');
+
+      const dir = path.dirname(outputPath);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+
+      fs.writeFileSync(outputPath, content, 'utf-8');
+      return `会话内容已导出到: ${outputPath}`;
+    }
+
+    return content;
+  } catch (error) {
+    console.error('导出会话失败:', error);
+    throw new Error(`导出会话失败: ${error.message}`);
+  }
+}
+
 export const inject = ['tools', 'commands'];
 
 export function apply(ctx) {

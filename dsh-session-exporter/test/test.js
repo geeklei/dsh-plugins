@@ -311,4 +311,8 @@ ${data.messages.map(msg => `<div>${msg.role}: ${msg.content}</div>`).join('')}
 };
 
 // 导出模拟函数
-window.exportSession = mockExportFunction;
+if (typeof global !== 'undefined') {
+  global.exportSession = mockExportFunction;
+} else if (typeof window !== 'undefined') {
+  window.exportSession = mockExportFunction;
+}
