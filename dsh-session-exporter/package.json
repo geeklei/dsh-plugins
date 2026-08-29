@@ -1,0 +1,39 @@
+{
+  "name": "dsh-session-exporter",
+  "version": "1.0.0",
+  "description": "dsh 会话内容导出插件",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "node test/test.js",
+    "check": "node -c index.js",
+    "lint": "eslint index.js",
+    "format": "prettier --write index.js"
+  },
+  "keywords": [
+    "dsh",
+    "plugin",
+    "session",
+    "export",
+    "conversation"
+  ],
+  "author": "geeklei",
+  "license": "MIT",
+  "dependencies": {
+    "@deepseek-ai/dsh-tools": "^1.0.0"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "prettier": "^3.0.0"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "cordis.patch.yml"
+    },
+    "files": [
+      "index.js",
+      "cordis.patch.yml",
+      "README.md"
+    ]
+  }
+}

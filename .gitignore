@@ -67,8 +67,7 @@ ehthumbs.db
 Thumbs.db
 
 # Claude Code 相关
-.claude/tasks.json
-.claude/scheduled_tasks.json
+.claude/**
 
 # 插件调试临时文件
 debug.patch.yml

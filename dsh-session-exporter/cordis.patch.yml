@@ -1,0 +1,4 @@
+insert:
+  - id: session-exporter
+    name: "dsh-session-exporter"
+    path: "./index.js"
