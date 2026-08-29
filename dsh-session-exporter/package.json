@@ -1,6 +1,6 @@
 {
   "name": "dsh-session-exporter",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "dsh 会话内容导出插件",
   "type": "module",
   "main": "index.js",
