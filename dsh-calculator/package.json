@@ -42,4 +42,11 @@
     "eslint-config-prettier": "^10.1.8",
     "prettier": "^3.9.6"
   }
+  ,
+  "private": false,
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public",
+    "tag": "latest"
+  }
 }
