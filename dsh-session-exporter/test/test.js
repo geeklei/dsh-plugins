@@ -86,7 +86,7 @@ describe('dsh-session-exporter', () => {
       expect(result).to.include('<!DOCTYPE html>');
       expect(result).to.include('<title>会话内容导出</title>');
       expect(result).to.include('<body>');
-      expect(result).to.include('<div class="message">');
+      expect(result).to.include('<div class="message user">');
     });
 
     it('应该能够导出纯文本格式', async () => {
@@ -148,7 +148,7 @@ describe('dsh-session-exporter', () => {
       expect(data.messages[0].content).to.not.include('test@example.com');
       expect(data.messages[0].content).to.not.include('sk-1234567890123456789012345678901234567890');
       expect(data.messages[0].content).to.include('[已清理的邮箱地址]');
-      expect(data.messages[0].content).to.include('[已清理的敏感信息]');
+      expect(data.messages[0].content).to.include('[已清理的密钥]');
     });
 
     it('应该能够处理不清理敏感信息的情况', async () => {

@@ -43,10 +43,6 @@ temp/
 coverage/
 .nyc_output/
 
-# 依赖锁文件
-package-lock.json
-yarn.lock
-pnpm-lock.yaml
 
 # 开发工具缓存
 .cache/

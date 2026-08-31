@@ -11,10 +11,17 @@ function result(kind, text) {
   return { kind, text }
 }
 
+// Windows 保留设备名（不区分大小写，含扩展名前缀）
+const RESERVED_NAME = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i
+
 function input(rawInput, command) {
   const value = rawInput.trim()
   if (!value || /\s/u.test(value)) {
     return result("error", `用法：/${command} <相对路径>`)
+  }
+  const segments = value.split(/[\\/]+/u)
+  if (segments.some(segment => RESERVED_NAME.test(segment.split(".")[0]))) {
+    return result("error", "路径包含系统保留名称")
   }
   return value
 }
@@ -38,6 +45,32 @@ async function existingInsideRoot(target) {
   return info
 }
 
+// 在创建任何目录/文件之前，沿路径向上找到最深的已存在祖先，
+// 并校验其真实路径未通过符号链接离开根目录（目标本身可能尚不存在）
+async function ensureAncestorInsideRoot(target) {
+  let ancestor = target
+  while (true) {
+    let actual
+    try {
+      actual = await realpath(ancestor)
+    } catch (error) {
+      if (error && error.code === "ENOENT") {
+        if (ancestor === root) return // 根本身不存在，交由后续 mkdir 处理
+        const parent = dirname(ancestor)
+        if (parent === ancestor) throw error
+        ancestor = parent
+        continue
+      }
+      throw error
+    }
+    const path = relative(await canonicalRoot, actual)
+    if (path === ".." || path.startsWith(`..${sep}`)) {
+      throw new Error("路径不能通过符号链接离开 dsh 当前工作目录")
+    }
+    return
+  }
+}
+
 async function list({ rawInput }) {
   const value = input(rawInput, "fs-list")
   if (typeof value !== "string") return value
@@ -59,6 +92,7 @@ async function makeDirectory({ rawInput }) {
   if (typeof value !== "string") return value
   try {
     const target = insideRoot(value)
+    await ensureAncestorInsideRoot(target)
     await mkdir(target, { recursive: true })
     await existingInsideRoot(target)
     return result("success", `已创建目录：${value}`)
@@ -73,6 +107,7 @@ async function touch({ rawInput }) {
   try {
     const target = insideRoot(value)
     const parent = insideRoot(dirname(value))
+    await ensureAncestorInsideRoot(parent)
     await mkdir(parent, { recursive: true })
     await existingInsideRoot(parent)
     await writeFile(target, "", { flag: "a" })

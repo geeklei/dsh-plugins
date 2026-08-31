@@ -7,6 +7,81 @@
 export const name = 'dsh-session-exporter';
 
 /**
+ * 用户输入校验类错误：消息可安全回显，不包含文件系统内部信息。
+ * 其他内部错误（如 ENOENT/EACCES）一律对外隐藏详情，只写日志。
+ */
+class SafeError extends Error {}
+
+/**
+ * 将输出路径安全地限制在当前工作目录内。
+ * - 拒绝 .. 路径穿越和绝对路径逃逸
+ * - 沿目录链向上找到最深已存在祖先，校验其 realpath 未通过符号链接离开根目录
+ */
+async function resolveSafeOutputPath(outputPath) {
+  const path = await import('node:path');
+  const fs = await import('node:fs/promises');
+
+  if (typeof outputPath !== 'string' || !outputPath.trim()) {
+    throw new SafeError('输出路径无效');
+  }
+
+  const root = path.resolve(process.cwd());
+  const target = path.resolve(root, outputPath);
+  const rel = path.relative(root, target);
+  if (rel === '..' || rel.startsWith(`..${path.sep}`) || path.isAbsolute(rel)) {
+    throw new SafeError('输出路径必须位于当前工作目录内');
+  }
+
+  // 校验已存在的祖先目录未通过符号链接逃逸（目标可能尚不存在）
+  let ancestor = path.dirname(target);
+  while (true) {
+    let actual;
+    try {
+      actual = await fs.realpath(ancestor);
+    } catch (err) {
+      if (err && err.code === 'ENOENT') {
+        const parent = path.dirname(ancestor);
+        if (parent === ancestor) throw err;
+        ancestor = parent;
+        continue;
+      }
+      throw err;
+    }
+    const ancestorRel = path.relative(root, actual);
+    if (ancestorRel === '..' || ancestorRel.startsWith(`..${path.sep}`) || path.isAbsolute(ancestorRel)) {
+      throw new SafeError('输出路径不能通过符号链接离开当前工作目录');
+    }
+    break;
+  }
+
+  return target;
+}
+
+/**
+ * 在安全位置写入导出内容
+ */
+async function writeOutputFile(outputPath, content) {
+  const path = await import('node:path');
+  const fs = await import('node:fs/promises');
+
+  const target = await resolveSafeOutputPath(outputPath);
+  await fs.mkdir(path.dirname(target), { recursive: true });
+  await fs.writeFile(target, content, 'utf-8');
+  return target;
+}
+
+/** HTML 转义，防止导出内容注入脚本 */
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (ch) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  }[ch]));
+}
+
+/**
  * 导出会话内容的主函数
  * @param {Object} options - 导出选项
  * @param {Object} options.ctx - dsh 上下文对象
@@ -34,24 +109,17 @@ export async function exportSession(options) {
     // 格式化内容
     const content = formatSessionData(data, format, includeMetadata, includeTimestamps);
 
-    // 如果指定了输出路径，写入文件
+    // 如果指定了输出路径，写入文件（路径被限制在当前工作目录内）
     if (outputPath) {
-      const fs = await import('fs');
-      const path = await import('path');
-
-      const dir = path.dirname(outputPath);
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
-      }
-
-      fs.writeFileSync(outputPath, content, 'utf-8');
-      return `会话内容已导出到: ${outputPath}`;
+      const target = await writeOutputFile(outputPath, content);
+      return `会话内容已导出到: ${target}`;
     }
 
     return content;
   } catch (error) {
     console.error('导出会话失败:', error);
-    throw new Error(`导出会话失败: ${error.message}`);
+    if (error instanceof SafeError) throw error;
+    throw new Error('导出会话失败，详细原因请查看日志');
   }
 }
 
@@ -146,25 +214,22 @@ export function apply(ctx) {
         const sessionData = await collectSessionData(ctx, !noMetadata, !noTimestamps, !noSanitize);
         const content = formatSessionData(sessionData, format, !noMetadata, !noTimestamps);
 
+        if (noSanitize) {
+          console.warn('[Session Exporter] 警告：已关闭敏感信息清理，导出内容可能包含密钥等机密信息，请妥善保管导出文件');
+        }
+
         if (output) {
-          // 创建目录（如果不存在）
-          const fs = await import('fs');
-          const path = await import('path');
-
-          const dir = path.dirname(output);
-          if (!fs.existsSync(dir)) {
-            fs.mkdirSync(dir, { recursive: true });
-          }
-
-          fs.writeFileSync(output, content, 'utf-8');
-          return `会话内容已导出到: ${output}`;
+          // 写入文件（路径被限制在当前工作目录内）
+          const target = await writeOutputFile(output, content);
+          return `会话内容已导出到: ${target}`;
         } else {
           // 直接返回内容
           return content;
         }
       } catch (error) {
         console.error('导出会话失败:', error);
-        throw new Error(`导出会话失败: ${error.message}`);
+        if (error instanceof SafeError) throw error;
+        throw new Error('导出会话失败，详细原因请查看日志');
       }
     }
   });
@@ -184,7 +249,6 @@ export function apply(ctx) {
  */
 async function collectSessionData(ctx, includeMetadata, includeTimestamps, sanitize) {
   const sessionData = {
-    metadata: {},
     messages: [],
     tools: [],
     commands: []
@@ -196,7 +260,7 @@ async function collectSessionData(ctx, includeMetadata, includeTimestamps, sanit
       startTime: new Date().toISOString(),
       pluginVersion: '1.0.0',
       dshVersion: '1.0.0',
-      user: process.env.USER || process.env.USERNAME || 'unknown'
+      user: maskUser(process.env.USER || process.env.USERNAME || 'unknown')
     };
   }
 
@@ -204,12 +268,14 @@ async function collectSessionData(ctx, includeMetadata, includeTimestamps, sanit
   // 在实际实现中，需要从会话存储中获取历史消息
   if (ctx.session && ctx.session.history) {
     ctx.session.history.forEach((msg, index) => {
-      let message = {
+      const message = {
         id: index,
         role: msg.role,
-        content: msg.content,
-        timestamp: includeTimestamps ? new Date().toISOString() : null
+        content: msg.content
       };
+      if (includeTimestamps) {
+        message.timestamp = new Date().toISOString();
+      }
 
       // 清理敏感信息
       if (sanitize) {
@@ -265,7 +331,7 @@ function formatSessionData(data, format, includeMetadata, includeTimestamps) {
       return formatAsText(data, includeMetadata, includeTimestamps);
 
     default:
-      throw new Error(`不支持的格式: ${format}`);
+      throw new SafeError(`不支持的格式: ${format}`);
   }
 }
 
@@ -340,6 +406,7 @@ function formatAsHtml(data, includeMetadata, includeTimestamps) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'">
     <title>会话内容导出</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; margin: 0; padding: 20px; color: #333; }
@@ -364,9 +431,9 @@ function formatAsHtml(data, includeMetadata, includeTimestamps) {
         <h1>会话内容导出</h1>
         <p><strong>导出时间:</strong> ${new Date().toISOString()}</p>`;
     if (data.metadata.user) {
-      html += `<p><strong>用户:</strong> ${data.metadata.user}</p>`;
+      html += `<p><strong>用户:</strong> ${escapeHtml(data.metadata.user)}</p>`;
     }
-    html += `<p><strong>导出版本:</strong> v${data.metadata.pluginVersion || '1.0.0'}</p>
+    html += `<p><strong>导出版本:</strong> v${escapeHtml(data.metadata.pluginVersion || '1.0.0')}</p>
     </div>`;
   }
 
@@ -378,10 +445,10 @@ function formatAsHtml(data, includeMetadata, includeTimestamps) {
       html += `
         <div class="message ${roleClass}">
             <h3>${msg.role === 'user' ? '用户' : 'AI'}</h3>
-            <div>${msg.content.replace(/\n/g, '<br>')}</div>`;
+            <div>${escapeHtml(msg.content == null ? '' : msg.content).replace(/\n/g, '<br>')}</div>`;
 
       if (includeTimestamps && msg.timestamp) {
-        html += `<div class="timestamp">${new Date(msg.timestamp).toLocaleString()}</div>`;
+        html += `<div class="timestamp">${escapeHtml(new Date(msg.timestamp).toLocaleString())}</div>`;
       }
 
       html += '</div>';
@@ -394,13 +461,13 @@ function formatAsHtml(data, includeMetadata, includeTimestamps) {
     data.tools.forEach(tool => {
       html += `
         <div class="tool">
-            <h4>${tool.name}</h4>
-            <p>${tool.description}</p>`;
+            <h4>${escapeHtml(tool.name)}</h4>
+            <p>${escapeHtml(tool.description)}</p>`;
 
       if (tool.parameters && tool.parameters.properties) {
         html += '<div class="parameters"><strong>参数:</strong><ul>';
         Object.entries(tool.parameters.properties).forEach(([key, param]) => {
-          html += `<li><strong>${key}</strong>: ${param.description} (${param.type})</li>`;
+          html += `<li><strong>${escapeHtml(key)}</strong>: ${escapeHtml(param.description)} (${escapeHtml(param.type)})</li>`;
         });
         html += '</ul></div>';
       }
@@ -415,11 +482,11 @@ function formatAsHtml(data, includeMetadata, includeTimestamps) {
     data.commands.forEach(cmd => {
       html += `
         <div class="command">
-            <h4>/${cmd.name}</h4>
-            <p>${cmd.description}</p>`;
+            <h4>/${escapeHtml(cmd.name)}</h4>
+            <p>${escapeHtml(cmd.description)}</p>`;
 
       if (cmd.usage) {
-        html += `<p><strong>用法:</strong> ${cmd.usage}</p>`;
+        html += `<p><strong>用法:</strong> ${escapeHtml(cmd.usage)}</p>`;
       }
 
       html += '</div>';
@@ -496,12 +563,35 @@ function formatAsText(data, includeMetadata, includeTimestamps) {
 }
 
 /**
+ * 用户名脱敏：保留首尾字符，中间以 * 号掩码
+ */
+function maskUser(user) {
+  if (!user || user === 'unknown') return 'unknown';
+  if (user.length <= 2) return user[0] + '*';
+  return user[0] + '*'.repeat(Math.min(user.length - 2, 6)) + user[user.length - 1];
+}
+
+/**
  * 清理敏感信息
  */
 function sanitizeContent(content) {
-  // 清理可能的 API 密钥
-  const apiKeyPattern = /(?:api[_-]?key|secret|token|password)[\s:]*[a-zA-Z0-9\/\+=]{20,}/gi;
+  content = String(content == null ? '' : content);
+
+  // 清理 PEM 私钥块（必须先于通用模式处理）
+  const privateKeyPattern = /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/g;
+  content = content.replace(privateKeyPattern, '[已清理的私钥]');
+
+  // 清理键值形式的 API 密钥 / 密码 / 令牌
+  const apiKeyPattern = /(?:api[_-]?key|secret|token|password)[\s:="']*[a-zA-Z0-9\/\+=\-_.]{16,}/gi;
   content = content.replace(apiKeyPattern, '[已清理的敏感信息]');
+
+  // 清理独立的 OpenAI 风格密钥（sk-...）
+  const openAiKeyPattern = /\bsk-[A-Za-z0-9\-_]{20,}\b/g;
+  content = content.replace(openAiKeyPattern, '[已清理的密钥]');
+
+  // 清理 JWT（eyJ 开头的三段式令牌）
+  const jwtPattern = /\beyJ[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]*\b/g;
+  content = content.replace(jwtPattern, '[已清理的令牌]');
 
   // 清理可能的个人信息
   const emailPattern = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g;
