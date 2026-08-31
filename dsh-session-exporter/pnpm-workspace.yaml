@@ -1,4 +1,0 @@
-# pnpm 10+ 配置项（overrides 等）需存放于 pnpm-workspace.yaml
-# 修复 serialize-javascript 已知漏洞（CVE：RCE <=7.0.2 / DoS <7.0.5，自 mocha 引入）
-overrides:
-  serialize-javascript: ">=7.0.5"
