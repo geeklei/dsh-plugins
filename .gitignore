@@ -39,6 +39,10 @@ tmp/
 temp/
 .tmp/
 
+# 运行时数据目录
+.rundata/
+
+
 # 测试覆盖率报告
 coverage/
 .nyc_output/
@@ -63,8 +67,132 @@ ehthumbs.db
 Thumbs.db
 
 # Claude Code 相关
-.claude/**
+.claude/
 
 # 插件调试临时文件
 debug.patch.yml
+
+# 包管理器锁文件（可选，根据团队规范决定是否提交）
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# TypeScript 编译产物
+*.tsbuildinfo
+
+# Next.js
+.next/
+out/
+
+# Nuxt.js
+.nuxt/
+.nuxi/
+
+# SvelteKit
+.svelte-kit/
+
+# Vitepress / Vuepress
+.vitepress/cache/
+.vuepress/cache/
+
+# Storybook
+storybook-static/
+
+# 数据库
+*.sqlite
+*.sqlite3
+
+# 备份文件
+*.bak
+*.backup
+*.old
+
+# 压缩文件
+*.zip
+*.rar
+*.7z
+
+# 虚拟机文件
+*.iso
+*.vbox
+*.vbox-prev
+
+# 本地配置覆盖
+config.local.*
+settings.local.json
+
+
+
+
+
+# 包管理器调试日志
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+yarn-integrity
+pnpm-debug.log*
+lerna-debug.log*
+
+# 云平台部署目录
+.vercel/
+.netlify/
+.serverless/
+.firebase/
+
+# Monorepo 构建工具
+.turbo/
+.rush/
+common/temp/
+
+# Jest 缓存
+jest-cache/
+
+# Docker 本地覆盖
+docker-compose.override.yml
+
+# Bazel 构建产物
+bazel-*
+
+# iOS / macOS 依赖与构建
+Pods/
+*.xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+
+# Android 构建
+.gradle/
+local.properties
+
+# Python 缓存（混合项目场景）
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Rust 构建产物
+target/
+
+# Electron 打包产物
+release/
+
+# MSBuild / Visual Studio 额外缓存
+.vs/
+*.user
+*.suo
+
+# 依赖分析与可视化报告
+dependency-cruiser-report.html
+
+# nvm 版本锁定文件（可选，根据团队规范）
+.node-version
+.nvmrc
+
+# Editor 配置备份
+.editorconfig.bak
+
+
+
+# 忽略所有点开头的文件，除过 .gitignore
+.*
+!.gitignore
 
