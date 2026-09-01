@@ -10,8 +10,10 @@ export const inject = ["tools"]
 
 const PLUGIN_DIR = dirname(fileURLToPath(import.meta.url))
 const FALLBACK_CONFIG = join(PLUGIN_DIR, "eslint.fallback.config.mjs")
-const WORK_ROOT = resolve(process.cwd())
-const canonicalRoot = realpath(WORK_ROOT)
+// 工作根目录在调用时惰性解析：保证测试/宿主切换 cwd 后行为正确
+function workRoot() {
+  return resolve(process.cwd())
+}
 
 // ---------------------------------------------------------------------------
 // 规则 -> 修复建议知识库（常见 ESLint 规则）
@@ -52,11 +54,12 @@ const LANGUAGE_EXT = {
 // 步骤 0：输入定位与安全校验（路径必须限制在 dsh 工作目录内）
 // ---------------------------------------------------------------------------
 async function resolveInsideRoot(value) {
+  const root = workRoot()
   if (!value || /[\0]/u.test(value)) {
     throw new Error("路径不能为空")
   }
-  const target = resolve(WORK_ROOT, value)
-  const rel = relative(WORK_ROOT, target)
+  const target = resolve(root, value)
+  const rel = relative(root, target)
   if (rel === ".." || rel.startsWith(`..${sep}`)) {
     throw new Error("路径必须位于 dsh 当前工作目录内")
   }
@@ -65,7 +68,7 @@ async function resolveInsideRoot(value) {
     throw new Error("目标不是普通文件（本工具审查单个文件）")
   }
   const actual = await realpath(target)
-  const relActual = relative(await canonicalRoot, actual)
+  const relActual = relative(await realpath(root), actual)
   if (relActual === ".." || relActual.startsWith(`..${sep}`)) {
     throw new Error("路径不能通过符号链接离开 dsh 当前工作目录")
   }
@@ -93,7 +96,7 @@ function run(command, args, options) {
   })
 }
 
-async function runEslint(target, { fix = false, cwd = WORK_ROOT } = {}) {
+async function runEslint(target, { fix = false, cwd = workRoot() } = {}) {
   const eslintBin = join(PLUGIN_DIR, "node_modules", "eslint", "bin", "eslint.js")
   const baseArgs = [eslintBin, target, "-f", "json", "--no-warn-ignored"]
 
@@ -327,7 +330,7 @@ export async function reviewCode({ path: rawPath, snippet, language, fix = false
   try {
     let filepath
     let displayName
-    let lintCwd = WORK_ROOT
+    let lintCwd = workRoot()
     if (snippet) {
       const ext = LANGUAGE_EXT[String(language ?? "javascript").toLowerCase()] ?? "js"
       tempDir = await mkdtemp(join(tmpdir(), "dsh-code-check-"))
@@ -338,7 +341,7 @@ export async function reviewCode({ path: rawPath, snippet, language, fix = false
       lintCwd = tempDir
     } else {
       filepath = await resolveInsideRoot(rawPath)
-      displayName = relative(WORK_ROOT, filepath)
+      displayName = relative(workRoot(), filepath)
     }
 
     const source = await readFile(filepath, "utf8")

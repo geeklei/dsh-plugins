@@ -1,5 +1,10 @@
 // 测试 dsh-code-check 插件的核心功能：审查流水线与结构化报告
 import { reviewCode, renderReport } from "./index.js"
+import { dirname } from "node:path"
+import { fileURLToPath } from "node:url"
+
+// 无论从哪里启动，都把工作目录固定到插件自身目录（CI 的 prepublishOnly 会在包目录内运行）
+process.chdir(dirname(fileURLToPath(import.meta.url)))
 
 let passed = 0
 let failed = 0
@@ -17,9 +22,9 @@ function check(name, condition) {
 console.log("🔧 开始测试 dsh-code-check 插件\n")
 
 // 场景 1：审查插件自身 index.js（应产出完整结构化报告，且评分较高）
-console.log("场景 1：审查自身文件 dsh-code-check/index.js")
+console.log("场景 1：审查自身文件 index.js")
 try {
-  const report = await reviewCode({ path: "dsh-code-check/index.js" })
+  const report = await reviewCode({ path: "index.js" })
   check("报告包含标题", report.includes("代码审查报告"))
   check("报告包含问题概览表", report.includes("问题概览"))
   check("报告包含下一步行动", report.includes("下一步行动"))
