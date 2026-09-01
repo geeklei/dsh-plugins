@@ -1,6 +1,6 @@
 import { defineTool } from "@deepseek-ai/dsh-tools"
 import { execFile } from "node:child_process"
-import { mkdtemp, readFile, realpath, rm, stat, writeFile } from "node:fs/promises"
+import { mkdtemp, readFile, readdir, realpath, rm, stat, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { dirname, join, relative, resolve, sep } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -9,6 +9,29 @@ export const name = "code-check"
 export const inject = ["tools"]
 
 const PLUGIN_DIR = dirname(fileURLToPath(import.meta.url))
+
+// 目录审查时默认忽略的目录与二进制/非文本文件
+const EXCLUDED_DIRS = new Set([
+  "node_modules",
+  ".git",
+  ".svn",
+  ".hg",
+  "dist",
+  "build",
+  "out",
+  "coverage",
+  ".next",
+  ".nuxt",
+  ".cache",
+  "vendor",
+])
+const BINARY_EXT = new Set([
+  ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".ico", ".bmp",
+  ".pdf", ".zip", ".gz", ".tar", ".tgz", ".7z", ".rar",
+  ".woff", ".woff2", ".ttf", ".otf", ".eot",
+  ".mp3", ".mp4", ".wav", ".avi", ".mov",
+  ".map", ".lock", ".db", ".sqlite", ".min.js", ".min.css",
+])
 const FALLBACK_CONFIG = join(PLUGIN_DIR, "eslint.fallback.config.mjs")
 // 工作根目录在调用时惰性解析：保证测试/宿主切换 cwd 后行为正确
 function workRoot() {
@@ -197,7 +220,7 @@ function heuristicCheck(source) {
     if (/\beval\s*\(/u.test(line)) {
       issues.push({
         line: ln,
-        message: "使用 eval() 执行动态代码",
+        message: "使用 eval 执行动态代码",
         suggestion: "eval 存在注入风险，改用 JSON.parse、switch 映射或模板方案",
       })
     }
@@ -373,6 +396,227 @@ export async function reviewCode({ path: rawPath, snippet, language, fix = false
 }
 
 // ---------------------------------------------------------------------------
+// 目录审查：文件收集、批量 ESLint 与聚合报告
+// ---------------------------------------------------------------------------
+function isLintable(filepath) {
+  return /\.(mjs|cjs|js|jsx|ts|tsx)$/iu.test(filepath)
+}
+
+function shouldInclude(filepath) {
+  const lower = filepath.toLowerCase()
+  for (const ext of BINARY_EXT) {
+    if (lower.endsWith(ext) || lower.endsWith(`${ext}`)) return false
+  }
+  return true
+}
+
+async function walkFiles(dir, maxFiles) {
+  const out = []
+  async function walk(current) {
+    if (out.length >= maxFiles) return
+    const entries = await readdir(current, { withFileTypes: true })
+    entries.sort((a, b) => a.name.localeCompare(b.name))
+    for (const entry of entries) {
+      if (out.length >= maxFiles) return
+      const full = join(current, entry.name)
+      if (entry.isDirectory()) {
+        if (!EXCLUDED_DIRS.has(entry.name)) await walk(full)
+      } else if (entry.isFile() && shouldInclude(entry.name)) {
+        out.push(full)
+      }
+    }
+  }
+  await walk(dir)
+  return out
+}
+
+async function runEslintFiles(targets, { fix = false, cwd = workRoot() } = {}) {
+  const eslintBin = join(PLUGIN_DIR, "node_modules", "eslint", "bin", "eslint.js")
+  const args = [eslintBin, "-f", "json", "--no-warn-ignored"]
+
+  if (fix) {
+    await run(process.execPath, [...args, "--fix", ...targets], { cwd })
+  }
+
+  let result = await run(process.execPath, [...args, ...targets], { cwd })
+  let configSource = "项目配置"
+  const noConfig =
+    result.code >= 2 && /couldn't find (an? )?(eslint\.config|configuration)/iu.test(result.stderr)
+  if (noConfig || /no configuration file/iu.test(result.stderr)) {
+    result = await run(process.execPath, [...args, "--config", FALLBACK_CONFIG, ...targets], { cwd })
+    configSource = "内置通用配置（目标项目未提供 ESLint 配置）"
+  }
+  if (result.spawnError) throw new Error(`无法启动 ESLint：${result.spawnError}`)
+  if (result.code >= 2) throw new Error(`ESLint 执行失败：${result.stderr.trim().slice(0, 300)}`)
+
+  const parsed = JSON.parse(result.stdout || "[]")
+  const map = new Map()
+  for (const file of parsed) {
+    const key = resolve(file.filePath ?? "")
+    map.set(key, {
+      messages: (file.messages ?? []).map((m) => ({
+        line: m.line ?? 0,
+        column: m.column ?? 0,
+        severity: m.severity ?? 1,
+        ruleId: m.ruleId ?? "fatal",
+        message: m.message ?? "",
+        fixable: Boolean(m.fix),
+      })),
+      errorCount: file.errorCount ?? 0,
+      warningCount: file.warningCount ?? 0,
+    })
+  }
+  // 无问题/被忽略的文件不在输出中，补一个空结果占位
+  for (const target of targets) {
+    if (!map.has(resolve(target))) {
+      map.set(resolve(target), { messages: [], errorCount: 0, warningCount: 0 })
+    }
+  }
+  return { configSource, results: map }
+}
+
+const formatIssue = (m, index) => {
+  const tip = RULE_SUGGESTIONS[m.ruleId] ?? "参考该规则的官方文档获取修复指引"
+  const pos = m.line ? `行 ${m.line}:${m.column}` : "文件级"
+  return `${index}. **[${pos}] \`${m.ruleId}\`** ${m.message}\n   → 建议：${tip}${m.fixable ? "（`eslint --fix` 可自动修复）" : ""}`
+}
+
+export function renderDirectoryReport(data) {
+  const { target, totalLines, files, eslintResults, formats, skippedCount } = data
+  const rows = []
+  let errors = 0
+  let warnings = 0
+  let formatFail = 0
+  let suggestions = 0
+
+  for (const f of files) {
+    const rel = f.rel
+    const eslint = eslintResults.get(f.abs) ?? { errorCount: 0, warningCount: 0, messages: [] }
+    const format = formats.get(f.abs)
+    const heuristicIssues = f.heuristics
+    errors += eslint.errorCount
+    warnings += eslint.warningCount
+    if (format && !format.ok) formatFail += 1
+    suggestions += heuristicIssues.length
+    rows.push({ rel, eslint, format, heuristicIssues })
+  }
+
+  let score = 100 - errors * 8 - warnings * 3 - formatFail * 5 - suggestions
+  score = Math.max(0, Math.round(score))
+
+  const lines = []
+  lines.push(`# 📋 代码审查报告（目录）`)
+  lines.push("")
+  lines.push(`**审查目标**: \`${target}\`（${files.length} 个文件，共 ${totalLines} 行）`)
+  if (skippedCount > 0) lines.push(`> 已跳过 ${skippedCount} 个二进制/忽略文件`) 
+  lines.push(`**整体评分**: ${gradeOf(score)}（${score}/100）`)
+  lines.push("")
+  lines.push("## 📊 问题概览")
+  lines.push("")
+  lines.push("| 类别 | 数量 |")
+  lines.push("|---|---|")
+  lines.push(`| ❌ ESLint 错误 | ${errors} |`)
+  lines.push(`| ⚠️ ESLint 警告 | ${warnings} |`)
+  lines.push(`| 🎨 格式不规范文件 | ${formatFail} |`)
+  lines.push(`| 💡 启发式建议 | ${suggestions} |`)
+  lines.push("")
+
+  lines.push("## 📁 文件清单")
+  lines.push("")
+  lines.push("| 文件 | 错误 | 警告 | 格式 | 建议 |")
+  lines.push("|---|---|---|---|---|")
+  const withIssues = []
+  for (const row of rows) {
+    const formatCell = row.format === null ? "—" : row.format.ok ? "✅" : "❌"
+    lines.push(
+      `| \`${row.rel}\` | ${row.eslint.errorCount} | ${row.eslint.warningCount} | ${formatCell} | ${row.heuristicIssues.length} |`
+    )
+    if (row.eslint.errorCount + row.eslint.warningCount + row.heuristicIssues.length > 0 || (row.format && !row.format.ok)) {
+      withIssues.push(row)
+    }
+  }
+  lines.push("")
+
+  if (withIssues.length > 0) {
+    lines.push("## 🔎 问题详情")
+    lines.push("")
+    for (const row of withIssues) {
+      lines.push(`### \`${row.rel}\``)
+      lines.push("")
+      const errorsL = row.eslint.messages.filter((m) => m.severity === 2)
+      const warningsL = row.eslint.messages.filter((m) => m.severity !== 2)
+      const chunks = []
+      if (errorsL.length > 0) {
+        chunks.push(`**错误 ${errorsL.length} 个**：`)
+        errorsL.slice(0, 8).forEach((m, i) => chunks.push(formatIssue(m, i + 1)))
+      }
+      if (warningsL.length > 0) {
+        chunks.push(`**警告 ${warningsL.length} 个**：`)
+        warningsL.slice(0, 8).forEach((m, i) => chunks.push(formatIssue(m, i + 1)))
+      }
+      row.heuristicIssues.slice(0, 5).forEach((h) => {
+        chunks.push(`[[${h.line ? `行${h.line}` : "全局"}]] ${h.message} → ${h.suggestion}`)
+      })
+      if (row.format && !row.format.ok) {
+        chunks.push(`格式：Prettier 需调整约 ${row.format.changedLines ?? "若干"} 行`)
+      }
+      lines.push(chunks.join("\n"))
+      lines.push("")
+    }
+  }
+
+  lines.push("## 🔧 下一步行动")
+  lines.push("")
+  if (errors + warnings + formatFail + suggestions === 0) {
+    lines.push("- ✅ 未发现问题，代码质量良好")
+  } else {
+    if (errors > 0) lines.push(`- 优先修复 ${errors} 个错误项（详见「问题详情」）`)
+    lines.push(`- 运行 \`npx eslint --fix\` 与 \`npx prettier --write <目录>\` 可批量自动修复`)
+    lines.push(`- 针对单个文件可用 \`code_review\` 传入该文件路径获取完整报告`)
+  }
+  return lines.join("\n")
+}
+
+export async function reviewDirectory(dirPath, { maxFiles = 200, fix = false } = {}) {
+  const files = await walkFiles(dirPath, maxFiles)
+  const displayName = relative(workRoot(), dirPath) || "."
+  const lintables = files.filter(isLintable)
+  let eslintResults = new Map()
+  let configSource = "无 lintable 文件"
+  if (lintables.length > 0) {
+    const eslint = await runEslintFiles(lintables, { fix: Boolean(fix), cwd: workRoot() })
+    eslintResults = eslint.results
+    configSource = eslint.configSource
+  }
+
+  const formats = new Map()
+  const records = []
+  let totalLines = 0
+  for (const abs of files) {
+    let source
+    try {
+      source = await readFile(abs, "utf8")
+    } catch {
+      continue // 超大/权限受限文件跳过
+    }
+    totalLines += source.split("\n").length
+    formats.set(abs, await checkFormat(source, abs))
+    records.push({ abs, rel: relative(workRoot(), abs), heuristics: heuristicCheck(source) })
+  }
+
+  const skippedCount = files.length - records.length
+  return renderDirectoryReport({
+    target: displayName,
+    totalLines,
+    files: records,
+    eslintResults,
+    formats,
+    skippedCount,
+    configSource,
+  })
+}
+
+// ---------------------------------------------------------------------------
 // dsh 工具注册
 // ---------------------------------------------------------------------------
 export function apply(ctx) {
@@ -380,12 +624,12 @@ export function apply(ctx) {
     defineTool({
       name: "code_review",
       description:
-        "审查指定文件或代码片段：整合 ESLint 静态检查、Prettier 格式校验与启发式问题分析，输出结构化审查报告（问题列表 + 分级 + 修复建议）。",
+        "审查指定文件、目录或代码片段：整合 ESLint 静态检查、Prettier 格式校验与启发式问题分析，输出结构化审查报告（问题列表 + 分级 + 修复建议）。path 指向目录时递归审查目录内文件并发聚合报告。",
       parameters: {
         path: {
           type: "string",
           required: false,
-          description: "要审查的文件路径（相对 dsh 工作目录），与 snippet 二选一",
+          description: "要审查的文件或目录路径（相对 dsh 工作目录），与 snippet 二选一；目录会被递归审查",
         },
         snippet: {
           type: "string",
@@ -402,6 +646,11 @@ export function apply(ctx) {
           required: false,
           description: "为 true 时先执行 eslint --fix 自动修复，再输出修复后的审查报告（默认 false）",
         },
+        maxFiles: {
+          type: "number",
+          required: false,
+          description: "目录审查时最多扫描的文件数（默认 200，超出部分不检查）",
+        },
       },
       output: {
         schema: { type: "string" },
@@ -409,6 +658,18 @@ export function apply(ctx) {
       },
       async execute(args) {
         try {
+          if (args.path && !args.snippet) {
+            const root = workRoot()
+            const target = resolve(root, args.path)
+            const rel = relative(root, target)
+            if (rel === ".." || rel.startsWith(`..${sep}`)) {
+              return "❌ 审查失败：路径必须位于 dsh 当前工作目录内"
+            }
+            const info = await stat(target)
+            if (info.isDirectory()) {
+              return await reviewDirectory(target, { maxFiles: args.maxFiles ?? 200, fix: Boolean(args.fix) })
+            }
+          }
           return await reviewCode(args)
         } catch (error) {
           return `❌ 审查失败：${error.message}`

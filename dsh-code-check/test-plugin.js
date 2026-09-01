@@ -1,5 +1,5 @@
 // 测试 dsh-code-check 插件的核心功能：审查流水线与结构化报告
-import { reviewCode, renderReport } from "./index.js"
+import { reviewCode, reviewDirectory, renderReport } from "./index.js"
 import { dirname } from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -97,6 +97,19 @@ const stub = renderReport({
 })
 check("stub 报告包含规则名", stub.includes("no-var"))
 check("stub 报告包含可自动修复提示", stub.includes("自动修复"))
+
+// 场景 7：目录审查（应聚合多文件，并排除 node_modules）
+console.log("\n场景 7：目录审查")
+try {
+  const report = await reviewDirectory(dirname(fileURLToPath(import.meta.url)), { maxFiles: 50 })
+  check("报告包含目录标题", report.includes("代码审查报告（目录）"))
+  check("报告包含文件清单", report.includes("文件清单"))
+  check("同时扫描了 index.js 与 test-plugin.js", report.includes("index.js") && report.includes("test-plugin.js"))
+  check("排除了 node_modules", !report.includes("node_modules/"))
+  check("汇总了 ESLint 警告统计", /ESLint 警告/u.test(report))
+} catch (error) {
+  check(`目录审查（报错: ${error.message}）`, false)
+}
 
 console.log(`\n📊 测试结果: ${passed} 通过, ${failed} 失败`)
 if (failed > 0) process.exit(1)
