@@ -1,4 +1,4 @@
-# dsh-calculator
+# dsh-plugin-calculator
 
 一个面向 [DeepSeek Harness (dsh)](https://github.com/deepseek-ai/deepseek-harness) 的数学计算工具插件。
 
@@ -65,7 +65,7 @@ pnpm install
 cat > debug.patch.yml <<"EOF"
 - insert:
     - id: calculator
-      name: "E:/dsh-plugins/dsh-calculator/index.js"
+      name: "E:/dsh-plugins/dsh-plugin-calculator/index.js"
 EOF
 
 # 启动 dsh Web 并加载插件，打开 http://127.0.0.1:3080
@@ -83,7 +83,7 @@ pnpm pack
 然后把它安装到目标机器上的 dsh：
 
 ```bash
-dsh plugin --profile web add ./dsh-calculator-0.1.0.tgz
+dsh plugin --profile web add ./dsh-plugin-calculator-0.1.0.tgz
 ```
 
 验证配置是否生效：
@@ -95,7 +95,7 @@ dsh plugin --profile web --dump-config
 卸载：
 
 ```bash
-dsh plugin --profile web remove dsh-calculator
+dsh plugin --profile web remove dsh-plugin-calculator
 ```
 
 ## 发布到 npm
@@ -108,7 +108,7 @@ npm whoami
 npm publish
 ```
 
-发布后，任何用户都可以通过 `dsh plugin --profile web add dsh-calculator` 安装。
+发布后，任何用户都可以通过 `dsh plugin --profile web add dsh-plugin-calculator` 安装。
 
 ## 插件结构说明
 

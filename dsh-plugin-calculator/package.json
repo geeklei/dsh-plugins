@@ -1,5 +1,5 @@
 {
-  "name": "dsh-calculator",
+  "name": "dsh-plugin-calculator",
   "version": "0.1.1",
   "description": "Mathematical calculation tools for DeepSeek Harness: basic arithmetic, scientific calculations and unit conversion.",
   "type": "module",
@@ -28,7 +28,7 @@
     "format": "prettier --write \"*.js\" \"*.json\" \"*.md\" \"*.yml\"",
     "validate": "node -e \"console.log('✅ 插件配置验证通过')\"",
     "prepublishOnly": "pnpm test && pnpm validate && echo '📦 准备发布插件...'",
-    "postinstall": "echo '🔧 dsh-calculator 插件已安装'",
+    "postinstall": "echo '🔧 dsh-plugin-calculator 插件已安装'",
     "pack": "pnpm pack"
   },
   "dsh": {

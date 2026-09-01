@@ -1,6 +1,6 @@
 # 从0到1创建 dsh 插件完整指南
 
-本指南将教你如何从头开始创建一个 DeepSeek Harness (dsh) 插件，以 `dsh-calculator` 为例。
+本指南将教你如何从头开始创建一个 DeepSeek Harness (dsh) 插件，以 `dsh-plugin-calculator` 为例。
 
 ## 📚 目录
 
@@ -66,15 +66,15 @@ export function apply(ctx) {            // 插件初始化函数
 ### 步骤1: 创建项目结构
 
 ```bash
-mkdir dsh-calculator
-cd dsh-calculator
+mkdir dsh-plugin-calculator
+cd dsh-plugin-calculator
 ```
 
 ### 步骤2: 创建 package.json
 
 ```json
 {
-  "name": "dsh-calculator",
+  "name": "dsh-plugin-calculator",
   "version": "0.1.0",
   "description": "Mathematical calculation tools for DeepSeek Harness",
   "type": "module",
@@ -107,7 +107,7 @@ cd dsh-calculator
 ```yaml
 - insert:
     - id: calculator
-      name: "dsh-calculator"
+      name: "dsh-plugin-calculator"
 ```
 
 ### 步骤4: 创建插件主文件 index.js
@@ -217,7 +217,7 @@ pnpm install
 cat > debug.patch.yml <<"EOF"
 - insert:
     - id: calculator
-      name: "E:/dsh-plugins/dsh-calculator/index.js"
+      name: "E:/dsh-plugins/dsh-plugin-calculator/index.js"
 EOF
 
 # 启动 dsh Web 并加载插件
@@ -231,13 +231,13 @@ pnpm dsh web --patch ./debug.patch.yml
 pnpm pack
 
 # 安装到 dsh
-dsh plugin --profile web add ./dsh-calculator-0.1.0.tgz
+dsh plugin --profile web add ./dsh-plugin-calculator-0.1.0.tgz
 
 # 验证安装
 dsh plugin --profile web --dump-config
 
 # 卸载插件
-dsh plugin --profile web remove dsh-calculator
+dsh plugin --profile web remove dsh-plugin-calculator
 ```
 
 ## 发布到 npm
@@ -250,7 +250,7 @@ npm login
 npm publish
 
 # 发布后其他用户可以安装
-dsh plugin --profile web add dsh-calculator
+dsh plugin --profile web add dsh-plugin-calculator
 ```
 
 ## 最佳实践
@@ -337,7 +337,7 @@ A: 可以，但需要注意安全性，避免路径遍历攻击，参考 `dsh-fi
 
 本项目包含以下示例插件：
 
-1. **dsh-calculator** - 数学计算工具插件
+1. **dsh-plugin-calculator** - 数学计算工具插件
 2. **dsh-text-stats** - 文本统计工具插件
 3. **dsh-file-manager** - 文件管理命令插件
 

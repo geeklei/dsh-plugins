@@ -153,7 +153,7 @@ function unitConversion(value, fromUnit, toUnit) {
 }
 
 // 运行测试
-console.log("🔧 开始测试 dsh-calculator 插件\n")
+console.log("🔧 开始测试 dsh-plugin-calculator 插件\n")
 
 console.log("📊 基本运算测试：")
 console.log("  23 + 45 =", basicArithmetic('add', 23, 45).operation)

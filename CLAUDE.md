@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## 项目概述
 
 这是一个 DeepSeek Harness (dsh) 插件集合，包含三个功能插件：
-- `dsh-calculator` - 数学计算工具插件
+- `dsh-plugin-calculator` - 数学计算工具插件
 - `dsh-text-stats` - 文本统计工具插件  
 - `dsh-file-manager` - 文件管理命令插件
 
@@ -49,7 +49,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 1. **安装依赖**
    ```bash
-   cd dsh-calculator  # 或其他插件目录
+   cd dsh-plugin-calculator  # 或其他插件目录
    pnpm install
    ```
 
@@ -59,7 +59,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
    cat > debug.patch.yml <<EOF
    - insert:
        - id: calculator
-         name: "绝对路径/dsh-calculator/index.js"
+         name: "绝对路径/dsh-plugin-calculator/index.js"
    EOF
    ```
 
@@ -73,7 +73,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 每个插件都有独立的脚本：
 
-**dsh-calculator**
+**dsh-plugin-calculator**
 ```bash
 pnpm test        # 运行测试
 pnpm validate    # 验证插件配置
@@ -147,7 +147,7 @@ npm run test     # 运行测试
 
 ### 插件功能说明
 
-**dsh-calculator**
+**dsh-plugin-calculator**
 - 提供基本数学运算（加减乘除、幂运算、取模）
 - 科学计算（三角函数、对数、指数等）
 - 单位转换（长度、重量、温度）
