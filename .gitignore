@@ -195,4 +195,5 @@ dependency-cruiser-report.html
 # 忽略所有点开头的文件，除过 .gitignore
 .*
 !.gitignore
+!.github/
 
