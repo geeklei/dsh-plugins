@@ -1,6 +1,6 @@
 {
   "name": "dsh-calculator",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Mathematical calculation tools for DeepSeek Harness: basic arithmetic, scientific calculations and unit conversion.",
   "type": "module",
   "main": "index.js",
@@ -41,8 +41,7 @@
     "eslint": "^10.9.1",
     "eslint-config-prettier": "^10.1.8",
     "prettier": "^3.9.6"
-  }
-  ,
+  },
   "private": false,
   "publishConfig": {
     "registry": "https://registry.npmjs.org/",
