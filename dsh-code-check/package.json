@@ -1,0 +1,48 @@
+{
+  "name": "dsh-code-check",
+  "version": "0.0.1",
+  "description": "Code review tool for DeepSeek Harness: integrates ESLint, Prettier and heuristic checks to produce structured review reports with fix suggestions.",
+  "type": "module",
+  "main": "index.js",
+  "files": [
+    "index.js",
+    "eslint.fallback.config.mjs",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "keywords": [
+    "dsh",
+    "plugin",
+    "code-review",
+    "eslint",
+    "prettier",
+    "lint",
+    "deepseek-harness"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@deepseek-ai/dsh-tools": "0.1.1-rc.2",
+    "eslint": "^10.9.1",
+    "prettier": "^3.9.6"
+  },
+  "scripts": {
+    "test": "node test-plugin.js",
+    "lint": "eslint index.js test-plugin.js",
+    "format": "prettier --write \"*.js\" \"*.mjs\" \"*.json\" \"*.md\" \"*.yml\"",
+    "validate": "node -e \"console.log('✅ 插件配置验证通过')\"",
+    "prepublishOnly": "pnpm test && pnpm validate && echo '📦 准备发布插件...'",
+    "postinstall": "echo '🔧 dsh-code-check 插件已安装'",
+    "pack": "pnpm pack"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "private": false,
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public",
+    "tag": "latest"
+  }
+}

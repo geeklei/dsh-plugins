@@ -1,0 +1,3 @@
+- insert:
+    - id: code-check
+      name: "dsh-code-check"
