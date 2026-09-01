@@ -19,13 +19,13 @@ jobs:
         with:
           node-version: 20
           registry-url: 'https://registry.npmjs.org'
-          cache: 'pnpm'
 
       - name: 从 tag 解析包名
         id: pkg
         run: echo "dir=$(echo '${{ github.ref_name }}' | cut -d'@' -f1)" >> "$GITHUB_OUTPUT"
 
-      - run: pnpm install --frozen-lockfile
+      - run: pnpm install
+        working-directory: ./${{ steps.pkg.outputs.dir }}
       - run: npm publish --access public
         working-directory: ./${{ steps.pkg.outputs.dir }}
         env:
