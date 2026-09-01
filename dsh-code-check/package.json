@@ -1,6 +1,6 @@
 {
   "name": "dsh-code-check",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Code review tool for DeepSeek Harness: integrates ESLint, Prettier and heuristic checks to produce structured review reports with fix suggestions.",
   "type": "module",
   "main": "index.js",
