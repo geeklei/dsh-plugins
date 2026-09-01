@@ -53,7 +53,7 @@ const meta = JSON.parse(jsonOut).metadata
 check('元数据用户名已脱敏', typeof meta.user === 'string' && meta.user.includes('*'))
 
 console.log('\n[4] 符号链接逃逸防护 (High, file-manager)')
-const fm = await import('../dsh-file-manager/index.js')
+const fm = await import('../dsh-file-manager-cli/index.js')
 // 直接复用插件内部逻辑较困难（未导出），改为行为级验证：
 // 在工作目录建立指向外部的符号链接，调用 fs-mkdir 命令处理函数
 const tmpOutside = await fs.mkdtemp(path.join(os.tmpdir(), 'dsh-outside-'))

@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 这是一个 DeepSeek Harness (dsh) 插件集合，包含三个功能插件：
 - `dsh-plugin-calculator` - 数学计算工具插件
 - `dsh-text-stats` - 文本统计工具插件  
-- `dsh-file-manager` - 文件管理命令插件
+- `dsh-file-manager-cli` - 文件管理命令插件
 
 ## 架构说明
 
@@ -86,7 +86,7 @@ pnpm format      # Prettier 格式化
 npm test         # 运行钩子验证测试
 ```
 
-**dsh-file-manager**
+**dsh-file-manager-cli**
 ```bash
 npm run check    # 语法检查
 npm run test     # 运行测试
@@ -131,7 +131,7 @@ npm run test     # 运行测试
 
 ### 安全考虑
 
-1. **文件操作限制**：dsh-file-manager 将所有操作限制在 dsh 启动工作目录内
+1. **文件操作限制**：dsh-file-manager-cli 将所有操作限制在 dsh 启动工作目录内
 2. **输入验证**：所有插件都实现参数验证和错误处理
 3. **资源限制**：dsh-text-stats 对输入大小进行限制，防止资源滥用
 
@@ -157,7 +157,7 @@ npm run test     # 运行测试
 - 估算 token 用量
 - 提供调用统计和性能监控
 
-**dsh-file-manager**
+**dsh-file-manager-cli**
 - 提供安全的文件/目录管理命令
 - 限制在 dsh 工作目录内操作
 - 支持：列表、创建目录、创建文件、删除操作

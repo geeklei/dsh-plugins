@@ -331,7 +331,7 @@ A: 使用 dsh-tools 提供的 schema 验证功能，或在 execute 函数中进�
 
 ### Q: 插件可以访问文件系统吗？
 
-A: 可以，但需要注意安全性，避免路径遍历攻击，参考 `dsh-file-manager` 的安全实践。
+A: 可以，但需要注意安全性，避免路径遍历攻击，参考 `dsh-file-manager-cli` 的安全实践。
 
 ## 示例参考
 
@@ -339,7 +339,7 @@ A: 可以，但需要注意安全性，避免路径遍历攻击，参考 `dsh-fi
 
 1. **dsh-plugin-calculator** - 数学计算工具插件
 2. **dsh-text-stats** - 文本统计工具插件
-3. **dsh-file-manager** - 文件管理命令插件
+3. **dsh-file-manager-cli** - 文件管理命令插件
 
 ## 总结
 

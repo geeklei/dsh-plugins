@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目概述
 
-dsh-file-manager 是一个 DeepSeek Harness (dsh) 插件，提供安全的文件和目录管理命令。所有操作都限制在 dsh 启动工作目录内，确保安全性。
+dsh-file-manager-cli 是一个 DeepSeek Harness (dsh) 插件，提供安全的文件和目录管理命令。所有操作都限制在 dsh 启动工作目录内，确保安全性。
 
 ## 架构设计
 
@@ -36,7 +36,7 @@ dsh-file-manager 是一个 DeepSeek Harness (dsh) 插件，提供安全的文件
    cat > debug.patch.yml <<EOF
    - insert:
        - id: file-manager
-         name: "绝对路径/dsh-file-manager/index.js"
+         name: "绝对路径/dsh-file-manager-cli/index.js"
    EOF
    ```
 

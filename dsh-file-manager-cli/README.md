@@ -1,4 +1,4 @@
-# dsh-file-manager
+# dsh-file-manager-cli
 
 [![npm version](https://img.shields.io/npm/v/dsh-file-manager-cli.svg)](https://www.npmjs.com/package/dsh-file-manager-cli)
 [![Node.js version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
@@ -78,7 +78,7 @@ dsh plugin --profile web add ./dsh-file-manager-cli-0.1.3.tgz
 1. 克隆项目
 ```bash
 git clone <repository-url>
-cd dsh-file-manager
+cd dsh-file-manager-cli
 ```
 
 2. 安装依赖
@@ -90,7 +90,7 @@ npm install
 ```yaml
 - insert:
     - id: file-manager
-      name: "绝对路径/dsh-file-manager/index.js"
+      name: "绝对路径/dsh-file-manager-cli/index.js"
 ```
 
 4. 启动 dsh Web 进行测试
