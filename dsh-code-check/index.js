@@ -58,6 +58,11 @@ const RULE_SUGGESTIONS = {
   "no-duplicate-imports": "合并同一模块的多次 import",
   "no-empty": "空语句块需要补充实现或注释说明意图",
   "no-unreachable": "存在不可达代码，检查 return/throw 后的语句",
+  "@typescript-eslint/no-explicit-any": "避免显式 any，收紧为具体类型，或用 unknown + 类型守卫",
+  "@typescript-eslint/no-unused-vars": "删除未使用的变量/参数，或以下划线开头表示有意忽略",
+  "@typescript-eslint/consistent-type-imports": "仅作类型使用的导入改用 import type，便于编译期擦除",
+  "@typescript-eslint/ban-ts-comment": "移除无用的 @ts-ignore/@ts-expect-error，或补充原因说明",
+  "@typescript-eslint/no-non-null-assertion": "谨慎使用非空断言 !，改用显式空值判断",
 }
 
 const LANGUAGE_EXT = {

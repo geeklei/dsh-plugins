@@ -6,6 +6,7 @@ DeepSeek Harness (dsh) 代码审查插件：整合 **ESLint** 静态检查、**P
 
 - 🔍 **多步审查流水线**：读取目标 → ESLint 检查 → Prettier 格式校验 → 启发式分析 → 生成报告
 - 📁 **目录审查**：path 指向目录时递归扫描（自动排除 node_modules/.git/dist 等），聚合生成总评分 + 文件清单 + 逐文件问题详情
+- 📐 **TypeScript 支持**：通过 typescript-eslint 正确解析 .ts/.tsx，提供类型级规则（no-explicit-any、no-unused-vars 等）
 - 📋 **结构化报告**：评分（A-D）、问题概览表、错误/警告分区、修复建议、下一步行动
 - 🛠 **工具整合**：调用 ESLint CLI（JSON 输出解析）+ Prettier API，支持项目自有 eslint.config，缺失时使用内置通用配置
 - 💡 **修复建议知识库**：常见 ESLint 规则 → 中文修复指引，并标注可 `--fix` 自动修复的条目
@@ -88,6 +89,7 @@ Agent 会调用：
 
 ## 设计要点
 
+- **TypeScript 解析**：内置兜底配置按文件后缀分流——JS 用通用规则，TS 接入 `typescript-eslint` 推荐规则与解析器；无需项目自带 tsconfig（未开启类型信息类规则）
 - **子进程调用**：ESLint 通过 `child_process.execFile` 运行，`--format json` 输出后解析为结构化消息列表；片段审查时以临时目录为 cwd，避免规则匹配范围外文件被忽略
 - **配置回退**：优先使用被审查项目自己的 `eslint.config.*`；缺失时报错信息识别后自动切换插件内置 `eslint.fallback.config.mjs`
 - **启发式检查**：对所有语言生效（TODO/FIXME、console、超长行、行尾空白、Tab 缩进、eval）
@@ -98,12 +100,12 @@ Agent 会调用：
 ```bash
 cd dsh-code-check
 pnpm install
-pnpm test    # 15 项断言：报告结构、问题检出、格式校验、参数校验、路径安全、渲染独立性
+pnpm test    # 24 项断言：报告结构、问题检出、格式校验、参数校验、路径安全、渲染独立性、目录审查、TS 审查
 pnpm lint
 ```
 
 ## 扩展方向
 
 - 已支持目录级审查，可继续增强：并行分片、按 git diff 只审查变更文件
-- 集成 TypeScript ESLint、stylelint、Ruff 等更多工具
+- 集成 stylelint（CSS）、markdownlint、Ruff（Python）等更多语言工具
 - 报告同时输出 JSON 结构，供上层 Agent 程序化消费

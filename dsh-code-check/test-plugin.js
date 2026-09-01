@@ -111,6 +111,26 @@ try {
   check(`目录审查（报错: ${error.message}）`, false)
 }
 
+// 场景 8：TypeScript 支持（应通过 typescript-eslint 检出类型级规则）
+console.log("\n场景 8：TypeScript 审查")
+const tsSnippet = [
+  "let unusedValue: number = 1",
+  "function greet(name: any): any { return name }",
+  "var total = 0",
+  "interface User { id: number; name: string }",
+  "const u: User = { id: 1, name: 'tom' } as User",
+  "console.log(u)",
+].join("\n")
+try {
+  const report = await reviewCode({ snippet: tsSnippet, language: "typescript" })
+  check("检出 no-explicit-any", report.includes("no-explicit-any"))
+  check("检出 @typescript-eslint/no-unused-vars", report.includes("@typescript-eslint/no-unused-vars"))
+  check("基建规则在 TS 下生效（no-var）", report.includes("no-var"))
+  check("给出 TS 规则中文建议", report.includes("避免显式 any"))
+} catch (error) {
+  check(`TypeScript 审查（报错: ${error.message}）`, false)
+}
+
 console.log(`\n📊 测试结果: ${passed} 通过, ${failed} 失败`)
 if (failed > 0) process.exit(1)
 console.log("✅ 全部测试通过")
