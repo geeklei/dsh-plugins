@@ -3,6 +3,8 @@
 适用仓库：`dsh-plugins`（多插件平级独立包仓库，tag 触发 CI 发布）。
 本规范基于本仓库实际工作流沉淀，供所有协作者（包括 AI Agent）遵循。
 
+> 只想复制命令？看简化版 [GIT_BRANCH_CHEATSHEET.md](./GIT_BRANCH_CHEATSHEET.md)。
+
 ## 📚 目录
 
 1. [分支模型](#分支模型)
