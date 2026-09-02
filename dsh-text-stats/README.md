@@ -4,6 +4,8 @@
 
 为模型提供 `text_stats` 工具：统计给定文本的字符数、字节数、行数、词数，并估算 token 用量。
 
+> 版本变更记录见 [CHANGELOG.md](./CHANGELOG.md)，当前版本 0.2.0。
+
 ## 0.2.0 变更
 
 - 新增可选 `mode` 参数：`summary`（默认，同 0.1.x 输出）/ `detailed`（字符构成 + 行数细分）/ `json`（结构化对象）
