@@ -5,10 +5,79 @@ export const inject = ["tools"]
 
 /** Maximum chars accepted by text_stats before the pre-execute gate denies the call. */
 const MAX_TEXT_CHARS = 100_000
-/** Maximum words accepted by text_stats before the pre-execute gate denies the call. */
-const MAX_TEXT_WORDS = 200_000
 /** How many recent results the tools/result observer keeps in memory. */
 const RECENT_RESULTS = 20
+
+/** Estimated tokens per CJK character (empirical, most tokenizers fit ~1.5-2 chars/token). */
+const TOKENS_PER_CJK = 0.6
+/** Estimated tokens per non-CJK character (ASCII-heavy text averages ~4 chars/token). */
+const TOKENS_PER_OTHER = 0.25
+/** CJK unified ideographs + extensions A and common fullwidth ranges. */
+const CJK_RE = /[\u2E80-\u9FFF\uF900-\uFAFF\uFF00-\uFFEF]/
+
+function isCjk(codePoint) {
+  return CJK_RE.test(String.fromCodePoint(codePoint))
+}
+
+/** Weighted token estimate: CJK chars cost more than ASCII ones. */
+function estimateTokens(text) {
+  let tokens = 0
+  for (const ch of text) {
+    tokens += isCjk(ch.codePointAt(0)) ? TOKENS_PER_CJK : TOKENS_PER_OTHER
+  }
+  return Math.ceil(tokens)
+}
+
+function computeStats(text) {
+  const chars = [...text].length
+  const bytes = Buffer.byteLength(text, "utf8")
+  const lines = text.length === 0 ? 0 : text.split(/\r?\n/).length
+  const nonEmptyLines = text.split(/\r?\n/).filter((l) => l.trim().length > 0).length
+  const words = text.trim() ? text.trim().split(/\s+/).length : 0
+  let cjk = 0
+  let whitespace = 0
+  for (const ch of text) {
+    const cp = ch.codePointAt(0)
+    if (isCjk(cp)) cjk += 1
+    else if (/\s/.test(ch)) whitespace += 1
+  }
+  const nonAscii = chars - [...text].filter((ch) => ch.codePointAt(0) < 0x80).length
+  return {
+    chars,
+    bytes,
+    lines,
+    nonEmptyLines,
+    emptyLines: lines - nonEmptyLines,
+    words,
+    cjkChars: cjk,
+    nonAsciiChars: nonAscii,
+    whitespaceChars: whitespace,
+    estimatedTokens: estimateTokens(text),
+  }
+}
+
+function renderSummary(s) {
+  return [
+    `Characters: ${s.chars}`,
+    `Bytes: ${s.bytes}`,
+    `Lines: ${s.lines}`,
+    `Words: ${s.words}`,
+    `Estimated tokens: ${s.estimatedTokens}`,
+  ].join("\n")
+}
+
+function renderDetailed(s) {
+  return [
+    `Characters: ${s.chars}`,
+    `  CJK chars: ${s.cjkChars}`,
+    `  Non-ASCII chars: ${s.nonAsciiChars}`,
+    `  Whitespace chars: ${s.whitespaceChars}`,
+    `Bytes: ${s.bytes}`,
+    `Lines: ${s.lines} (non-empty: ${s.nonEmptyLines}, empty: ${s.emptyLines})`,
+    `Words: ${s.words}`,
+    `Estimated tokens: ${s.estimatedTokens} (CJK-weighted estimate, not a real tokenizer)`,
+  ].join("\n")
+}
 
 function agentId(exec) {
   return exec.agent ? String(exec.agent.id) : "unknown"
@@ -29,6 +98,7 @@ export function apply(ctx) {
   const stats = {
     calls: 0,
     denied: 0,
+    deniedByChars: 0,
     failed: 0,
     chars: 0,
     totalMs: 0,
@@ -45,19 +115,13 @@ export function apply(ctx) {
       const text = String(args.text ?? "")
       if (text.length > MAX_TEXT_CHARS) {
         stats.denied += 1
+        stats.deniedByChars += 1
         return {
           kind: "deny",
-          reason: `text_stats input too large: ${text.length} chars (max ${MAX_TEXT_CHARS}).`,
+          reason: `text_stats input too large: ${text.length} chars (max ${MAX_TEXT_CHARS}). Split the text into smaller chunks and call text_stats per chunk.`,
         }
       }
-      const words = text.trim() ? text.trim().split(/\s+/).length : 0
-      if (words > MAX_TEXT_WORDS) {
-        stats.denied += 1
-        return {
-          kind: "deny",
-          reason: `text_stats input too large: ${words} words (max ${MAX_TEXT_WORDS}).`,
-        }
-      }
+      // Note: a word-count gate is unnecessary because words <= chars <= MAX_TEXT_CHARS.
     }
 
     return next()
@@ -84,6 +148,7 @@ export function apply(ctx) {
       agent: agentId(exec),
       at: new Date().toISOString(),
       ok: !result.isError,
+      chars: exec.name === "text_stats" ? String(exec.arguments?.text ?? "").length : undefined,
       summary: result.isError
         ? result.error.message
         : JSON.stringify(result.value).slice(0, 120),
@@ -106,6 +171,10 @@ export function apply(ctx) {
         required: true,
         description: "The text to inspect.",
       },
+      mode: {
+        type: "string",
+        description: 'Output detail level: "summary" (default), "detailed" (char breakdown + line breakdown) or "json" (structured object).',
+      },
     },
     output: {
       schema: { type: "string" },
@@ -113,19 +182,11 @@ export function apply(ctx) {
     },
     async execute(args) {
       const text = String(args.text ?? "")
-      const chars = [...text].length
-      const bytes = Buffer.byteLength(text, "utf8")
-      const lines = text.length === 0 ? 0 : text.split(/\r?\n/).length
-      const words = text.trim() ? text.trim().split(/\s+/).length : 0
-      const tokens = Math.ceil(bytes / 4)
-
-      return [
-        `Characters: ${chars}`,
-        `Bytes: ${bytes}`,
-        `Lines: ${lines}`,
-        `Words: ${words}`,
-        `Estimated tokens: ${tokens}`,
-      ].join("\n")
+      const mode = args.mode === "detailed" || args.mode === "json" ? args.mode : "summary"
+      const stats = computeStats(text)
+      if (mode === "json") return JSON.stringify(stats)
+      if (mode === "detailed") return renderDetailed(stats)
+      return renderSummary(stats)
     },
   }))
 }

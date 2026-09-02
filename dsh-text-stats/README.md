@@ -4,6 +4,24 @@
 
 为模型提供 `text_stats` 工具：统计给定文本的字符数、字节数、行数、词数，并估算 token 用量。
 
+## 0.2.0 变更
+
+- 新增可选 `mode` 参数：`summary`（默认，同 0.1.x 输出）/ `detailed`（字符构成 + 行数细分）/ `json`（结构化对象）
+- Token 估算改为 CJK 加权：CJK 字符按 ~0.6 token/字、其他字符按 ~0.25 token/字符，对中文文本不再像旧的 `bytes / 4` 那样严重低估
+- 超限拒绝理由附带当前长度与分段建议，便于模型自行重试
+- `ctx.textStats` 新增 `deniedByChars` 细分计数；`recent` 历史条目新增 `chars` 字段
+- 移除不可达的词数门禁（0.1.x 的 `MAX_TEXT_WORDS`：因为词数 ≤ 字符数 ≤ 100k，永远达不到 200k，属于死代码）
+
+## 参数
+
+| 参数 | 必填 | 说明 |
+| --- | --- | --- |
+| `text` | 是 | 要统计的文本 |
+| `mode` | 否 | `summary`（默认）/ `detailed` / `json`，其他值回退为 `summary` |
+
+`detailed` 模式额外输出：CJK 字符数、非 ASCII 字符数、空白符数、非空行/空行数。
+`json` 模式返回结构化对象：`{ chars, bytes, lines, nonEmptyLines, emptyLines, words, cjkChars, nonAsciiChars, whitespaceChars, estimatedTokens }`。
+
 ## 统计口径与约束
 
 `text_stats` 的统计规则：
@@ -12,18 +30,17 @@
 - **字节数**：UTF-8 编码后的字节数（`Buffer.byteLength(text, "utf8")`）
 - **行数**：按 `\n` 或 `\r\n` 分割；空文本为 0 行
 - **词数**：`trim()` 后按空白符分割；空文本为 0 词
-- **Token 估算**：`Math.ceil(字节数 / 4)`，只是粗略估算，不代表真实模型的分词结果
+- **Token 估算**：CJK 加权估算（CJK ~0.6 token/字，其他 ~0.25 token/字符），仍是估算，不代表真实模型的分词结果
 
 输入约束（由 `tools/pre-execute` 钩子强制）：
 
 - 单个调用文本上限：100,000 字符（`MAX_TEXT_CHARS`）
-- 单词数上限：200,000 词（`MAX_TEXT_WORDS`）
-- 超限调用直接拒绝（`deny`），不会执行统计，模型会看到拒绝原因
+- 超限调用直接拒绝（`deny`），不会执行统计，拒绝理由中包含当前长度和“分段传入”的建议
 
 观察约束（`tools/result` 钩子）：
 
 - `ctx.textStats.recent` 最多保留最近 20 条结果（`RECENT_RESULTS`），超出后丢弃最旧的
-- 计数器（`calls` / `denied` / `failed` / `chars` / `totalMs`）仅在插件存活期间累计，进程重启后归零
+- 计数器（`calls` / `denied` / `deniedByChars` / `failed` / `chars` / `totalMs`）仅在插件存活期间累计，进程重启后归零
 
 所有上限常量都定义在 `index.js` 顶部，可按需调整后重新打包。
 ## 本地开发
@@ -109,7 +126,7 @@ pnpm publish
 | 事件 | 模式 | 作用 |
 | --- | --- | --- |
 | `ready` / `dispose` | 生命周期 | 插件启动 / 卸载时记录日志 |
-| `tools/pre-execute` | waterfall | 审计每次工具调用；对超大的 `text_stats` 输入直接 `deny`（100k 字符 / 200k 词上限），防止资源滥用 |
+| `tools/pre-execute` | waterfall | 审计每次工具调用；对超过 100k 字符的 `text_stats` 输入直接 `deny`，防止资源滥用 |
 | `tools/execute` | waterfall | 为 `text_stats` 计时（metrics 模式），累计耗时写入 `ctx.textStats.totalMs` |
 | `tools/result` | emit | 观察冻结的最终结果：累计调用数 / 失败数 / 字符数，并保留最近 20 条结果历史 |
 
@@ -117,21 +134,22 @@ pnpm publish
 
 ```js
 {
-  calls: 12,     // 观察到的总调用数
-  denied: 1,     // 被 pre-execute 拒绝的次数
-  failed: 0,     // 执行失败次数
+  calls: 12,           // 观察到的总调用数
+  denied: 1,           // 被 pre-execute 拒绝的次数
+  deniedByChars: 1,    // 其中因字符超限被拒绝的次数
+  failed: 0,           // 执行失败次数
   chars: 3456,   // 成功处理 text_stats 的累计字符数
   totalMs: 8.2,  // text_stats 累计执行耗时（毫秒）
   recent: [...], // 最近 20 条结果（name / agent / at / ok / summary）
 }
 ```
 
-限制常量（`MAX_TEXT_CHARS` / `MAX_TEXT_WORDS` / `RECENT_RESULTS`）定义在 `index.js` 顶部，可按需调整。
+限制常量（`MAX_TEXT_CHARS` / `RECENT_RESULTS` / `TOKENS_PER_CJK` / `TOKENS_PER_OTHER`）定义在 `index.js` 顶部，可按需调整。
 ## npm 生命周期钩子
 
 `package.json` 中配置了常用 npm 钩子（scripts）：
 
-- `test`：执行 `node verify-hooks.mjs`，22 项断言覆盖门禁、计时、结果观察与工具本体
+- `test`：执行 `node verify-hooks.mjs`，33 项断言覆盖门禁、计时、结果观察与工具本体（含 0.2.0 的 mode / json / token 估算用例）
 - `prepack`：`pnpm pack` / `npm publish` 打包前自动运行 `npm test`
 - `prepublishOnly`：`npm publish` 发布前自动运行 `npm test`
 
