@@ -26,11 +26,11 @@
 
 `text_stats` 的统计规则：
 
-- **字符数**：按 Unicode 码点（code point）计数（`[...text].length`），不是 UTF-16 单元数
+- **字符数**：按 Unicode 码点（code point）计数，不是 UTF-16 单元数（输入门禁同样按码点计，emoji 等增补平面字符不会被双重计数）
 - **字节数**：UTF-8 编码后的字节数（`Buffer.byteLength(text, "utf8")`）
 - **行数**：按 `\n` 或 `\r\n` 分割；空文本为 0 行
 - **词数**：`trim()` 后按空白符分割；空文本为 0 词
-- **Token 估算**：CJK 加权估算（CJK ~0.6 token/字，其他 ~0.25 token/字符），仍是估算，不代表真实模型的分词结果
+- **Token 估算**：CJK 加权估算（CJK 统一表意文字 ~0.6 token/字，其他 ~0.25 token/字符），仍是估算，不代表真实模型的分词结果；全角拉丁/半角片假名/全角空格不计入 CJK
 
 输入约束（由 `tools/pre-execute` 钩子强制）：
 

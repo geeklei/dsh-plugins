@@ -143,6 +143,25 @@ assert(zhTokens === 3, "CJK-weighted token estimate for pure Chinese text")
 // unknown mode falls back to summary
 const fallback = await registered[0].execute({ text: "hi", mode: "bogus" }, { signal: new AbortController().signal })
 assert(fallback.includes("Characters: 2"), "unknown mode falls back to summary")
+
+// regression: surrogate-pair text inside the chars limit is allowed (gate uses code points now)
+const emoji = "\u{1F600}".repeat(60_000)
+const emojiGate = await pre[0]({ name: "text_stats", arguments: { text: emoji } }, nextAllow)
+assert(emojiGate.kind === "allow", "60k emoji (120k utf-16 units) allowed under 100k code-point gate")
+const emojiJson = JSON.parse(await registered[0].execute({ text: emoji, mode: "json" }, { signal: new AbortController().signal }))
+assert(emojiJson.chars === 60_000, "emoji counted as code points")
+
+// regression: ideographic space U+3000 counts as whitespace, not CJK
+const jpSpace = JSON.parse(await registered[0].execute({ text: "\u3000", mode: "json" }, { signal: new AbortController().signal }))
+assert(jpSpace.whitespaceChars === 1 && jpSpace.cjkChars === 0, "U+3000 counted as whitespace not CJK")
+
+// regression: fullwidth latin and halfwidth katakana are not CJK
+const fw = JSON.parse(await registered[0].execute({ text: "\uFF21\uFF66", mode: "json" }, { signal: new AbortController().signal }))
+assert(fw.cjkChars === 0, "fullwidth latin / halfwidth katakana not counted as CJK")
+
+// regression: failed result without error object does not throw
+resultHook[0]({ name: "text_stats", arguments: { text: "x" } }, { isError: true })
+assert(ctx.textStats.recent[ctx.textStats.recent.length - 1].summary === "unknown error", "missing error object yields unknown error summary")
 const blocks = registered[0].output.render({ text: "hi" }, value)
 assert(Array.isArray(blocks) && blocks[0].type === "text" && blocks[0].text === value, "output render still works")
 

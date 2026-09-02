@@ -12,11 +12,20 @@ const RECENT_RESULTS = 20
 const TOKENS_PER_CJK = 0.6
 /** Estimated tokens per non-CJK character (ASCII-heavy text averages ~4 chars/token). */
 const TOKENS_PER_OTHER = 0.25
-/** CJK unified ideographs + extensions A and common fullwidth ranges. */
-const CJK_RE = /[\u2E80-\u9FFF\uF900-\uFAFF\uFF00-\uFFEF]/
-
+/** CJK unified ideographs: extension A, main block, compatibility ideographs. */
 function isCjk(codePoint) {
-  return CJK_RE.test(String.fromCodePoint(codePoint))
+  return (
+    (codePoint >= 0x3400 && codePoint <= 0x4dbf) ||
+    (codePoint >= 0x4e00 && codePoint <= 0x9fff) ||
+    (codePoint >= 0xf900 && codePoint <= 0xfaff)
+  )
+}
+
+/** Code-point count (matches the tool's "Characters" semantics, not UTF-16 length). */
+function codePointLength(text) {
+  let n = 0
+  for (const _ of text) n += 1
+  return n
 }
 
 /** Weighted token estimate: CJK chars cost more than ASCII ones. */
@@ -38,8 +47,9 @@ function computeStats(text) {
   let whitespace = 0
   for (const ch of text) {
     const cp = ch.codePointAt(0)
-    if (isCjk(cp)) cjk += 1
-    else if (/\s/.test(ch)) whitespace += 1
+    // whitespace check first: ideographic space U+3000 is both CJK-block-adjacent and whitespace
+    if (/\s/.test(ch)) whitespace += 1
+    else if (isCjk(cp)) cjk += 1
   }
   const nonAscii = chars - [...text].filter((ch) => ch.codePointAt(0) < 0x80).length
   return {
@@ -113,12 +123,14 @@ export function apply(ctx) {
 
     if (exec.name === "text_stats") {
       const text = String(args.text ?? "")
-      if (text.length > MAX_TEXT_CHARS) {
+      // code-point length, consistent with the tool's "Characters" output
+      const textChars = codePointLength(text)
+      if (textChars > MAX_TEXT_CHARS) {
         stats.denied += 1
         stats.deniedByChars += 1
         return {
           kind: "deny",
-          reason: `text_stats input too large: ${text.length} chars (max ${MAX_TEXT_CHARS}). Split the text into smaller chunks and call text_stats per chunk.`,
+          reason: `text_stats input too large: ${textChars} chars (max ${MAX_TEXT_CHARS}). Split the text into smaller chunks and call text_stats per chunk.`,
         }
       }
       // Note: a word-count gate is unnecessary because words <= chars <= MAX_TEXT_CHARS.
@@ -148,17 +160,17 @@ export function apply(ctx) {
       agent: agentId(exec),
       at: new Date().toISOString(),
       ok: !result.isError,
-      chars: exec.name === "text_stats" ? String(exec.arguments?.text ?? "").length : undefined,
+      chars: exec.name === "text_stats" ? codePointLength(String(exec.arguments?.text ?? "")) : undefined,
       summary: result.isError
-        ? result.error.message
+        ? result.error?.message ?? "unknown error"
         : JSON.stringify(result.value).slice(0, 120),
     })
     if (stats.recent.length > RECENT_RESULTS) stats.recent.shift()
 
     if (exec.name === "text_stats" && !result.isError) {
       const text = String(exec.arguments?.text ?? "")
-      stats.chars += text.length
-      ctx.logger.debug(`[text-stats] result ok chars=${text.length}`)
+      stats.chars += codePointLength(text)
+      ctx.logger.debug(`[text-stats] result ok chars=${stats.chars}`)
     }
   })
 
