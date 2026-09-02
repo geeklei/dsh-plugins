@@ -357,6 +357,7 @@ A: 可以，但需要注意安全性，避免路径遍历攻击，参考 `dsh-fi
 
 ## 相关资源
 
+- [Git 分支操作规范](./GIT_BRANCH_GUIDE.md)
 - [DeepSeek Harness GitHub](https://github.com/deepseek-ai/deepseek-harness)
 - [dsh-tools 文档](https://www.npmjs.com/package/@deepseek-ai/dsh-tools)
 - [Cordis 文档](https://cordis.js.org/)
