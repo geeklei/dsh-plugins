@@ -28,8 +28,7 @@
     "test": "node verify-hooks.mjs",
     "prepack": "npm test",
     "prepublishOnly": "npm test",
-    "pack": "pnpm pack",
-    "publish": "pnpm publish"
+    "pack": "pnpm pack"
   },
   "publishConfig": {
     "access": "public",
