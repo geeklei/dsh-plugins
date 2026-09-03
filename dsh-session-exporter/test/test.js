@@ -53,6 +53,7 @@ describe('dsh-session-exporter', () => {
         format: 'json'
       });
 
+
       const data = JSON.parse(result);
 
       // 验证基本结构
@@ -170,7 +171,8 @@ describe('dsh-session-exporter', () => {
         sanitize: false
       });
 
-      const data = JSON.parse(result);
+      expect(result).to.include('[警告] 已关闭敏感信息清理');
+      const data = JSON.parse(result.replace(/^\[警告\][^\n]*\n+/, ''));
       expect(data.messages[0].content).to.include('test@example.com');
       expect(data.messages[0].content).to.include('sk-1234567890123456789012345678901234567890');
     });

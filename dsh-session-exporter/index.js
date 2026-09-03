@@ -4,7 +4,14 @@
  * 该插件提供导出 dsh 会话内容的功能，支持多种格式和导出方式
  */
 
+import { readFileSync } from 'node:fs';
+
 export const name = 'dsh-session-exporter';
+
+// 插件版本号：以 package.json 为唯一来源，避免元数据中的版本过期
+const PLUGIN_VERSION = JSON.parse(
+  readFileSync(new URL('./package.json', import.meta.url), 'utf-8')
+).version;
 
 /**
  * 用户输入校验类错误：消息可安全回显，不包含文件系统内部信息。
@@ -95,7 +102,7 @@ function escapeHtml(value) {
 export async function exportSession(options) {
   const {
     ctx,
-    format = 'json',
+    format = 'markdown',
     outputPath,
     includeMetadata = true,
     includeTimestamps = true,
@@ -106,16 +113,18 @@ export async function exportSession(options) {
     // 收集会话数据
     const data = await collectSessionData(ctx, includeMetadata, includeTimestamps, sanitize);
 
+    // 关闭脱敏时在返回值中显式告警，确保工具调用入口也能感知风险
+    const warning = sanitize ? '' : '[警告] 已关闭敏感信息清理，导出内容可能包含密钥等机密信息，请妥善保管。\n\n';
     // 格式化内容
     const content = formatSessionData(data, format, includeMetadata, includeTimestamps);
 
     // 如果指定了输出路径，写入文件（路径被限制在当前工作目录内）
     if (outputPath) {
       const target = await writeOutputFile(outputPath, content);
-      return `会话内容已导出到: ${target}`;
+      return warning + `会话内容已导出到: ${target}`;
     }
 
-    return content;
+    return warning + content;
   } catch (error) {
     console.error('导出会话失败:', error);
     if (error instanceof SafeError) throw error;
@@ -258,7 +267,7 @@ async function collectSessionData(ctx, includeMetadata, includeTimestamps, sanit
   if (includeMetadata) {
     sessionData.metadata = {
       startTime: new Date().toISOString(),
-      pluginVersion: '1.0.0',
+      pluginVersion: PLUGIN_VERSION,
       dshVersion: '1.0.0',
       user: maskUser(process.env.USER || process.env.USERNAME || 'unknown')
     };
@@ -274,7 +283,7 @@ async function collectSessionData(ctx, includeMetadata, includeTimestamps, sanit
         content: msg.content
       };
       if (includeTimestamps) {
-        message.timestamp = new Date().toISOString();
+        if (msg.timestamp) message.timestamp = msg.timestamp;
       }
 
       // 清理敏感信息
