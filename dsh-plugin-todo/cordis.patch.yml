@@ -1,0 +1,3 @@
+- insert:
+    - id: todo
+      name: "dsh-plugin-todo"

@@ -1,0 +1,41 @@
+{
+  "name": "dsh-plugin-todo",
+  "version": "0.1.0",
+  "description": "TODO management tools for DeepSeek Harness: add, complete, list, sort and remove tasks, persisted in a workspace .todos.json file.",
+  "type": "module",
+  "main": "index.js",
+  "files": [
+    "index.js",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "keywords": [
+    "dsh",
+    "plugin",
+    "todo",
+    "task",
+    "deepseek-harness"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@deepseek-ai/dsh-tools": "0.1.1-rc.2"
+  },
+  "scripts": {
+    "dev": "pnpm dsh web --patch ./debug.patch.yml",
+    "test": "node test-plugin.js",
+    "validate": "node -e \"console.log('✅ 插件配置验证通过')\"",
+    "prepublishOnly": "pnpm test && pnpm validate && echo '📦 准备发布插件...'",
+    "pack": "pnpm pack"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "private": false,
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public",
+    "tag": "latest"
+  }
+}
