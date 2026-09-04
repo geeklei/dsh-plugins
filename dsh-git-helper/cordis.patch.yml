@@ -1,0 +1,3 @@
+- insert:
+    - id: git-helper
+      name: "dsh-git-helper"

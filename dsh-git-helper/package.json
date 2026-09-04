@@ -1,0 +1,39 @@
+{
+  "name": "dsh-git-helper",
+  "version": "0.1.0",
+  "description": "Safe Git tools for DeepSeek Harness: read-only status/diff/log/branch queries plus a guarded commit tool.",
+  "type": "module",
+  "main": "index.js",
+  "files": [
+    "index.js",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "keywords": [
+    "dsh",
+    "plugin",
+    "git",
+    "version-control",
+    "deepseek-harness"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@deepseek-ai/dsh-tools": "0.1.1-rc.2"
+  },
+  "scripts": {
+    "test": "node test-plugin.js",
+    "validate": "node -e \"console.log('✅ 插件配置验证通过')\"",
+    "prepublishOnly": "npm test && npm run validate"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "private": false,
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public",
+    "tag": "latest"
+  }
+}
