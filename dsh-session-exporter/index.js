@@ -106,21 +106,31 @@ export async function exportSession(options) {
     outputPath,
     includeMetadata = true,
     includeTimestamps = true,
-    sanitize = true
+    sanitize = true,
+    last = null,
+    from = null,
+    to = null,
+    autoName = false
   } = options;
 
   try {
     // 收集会话数据
     const data = await collectSessionData(ctx, includeMetadata, includeTimestamps, sanitize);
+    // 1.1.0: 导出范围控制（last 优先于 from/to）
+    data.messages = applyRange(data.messages, { last, from, to });
 
     // 关闭脱敏时在返回值中显式告警，确保工具调用入口也能感知风险
     const warning = sanitize ? '' : '[警告] 已关闭敏感信息清理，导出内容可能包含密钥等机密信息，请妥善保管。\n\n';
     // 格式化内容
+    // 1.1.0: 输出路径——显式指定优先，否则按需自动生成带时间戳的文件名
+    const resolvedPath = outputPath || (autoName ? autoFileName(format) : null);
     const content = formatSessionData(data, format, includeMetadata, includeTimestamps);
+    // 1.1.0: 单文件大小上限保护
+    ensureSizeLimit(content);
 
     // 如果指定了输出路径，写入文件（路径被限制在当前工作目录内）
-    if (outputPath) {
-      const target = await writeOutputFile(outputPath, content);
+    if (resolvedPath) {
+      const target = await writeOutputFile(resolvedPath, content);
       return warning + `会话内容已导出到: ${target}`;
     }
 
@@ -145,7 +155,7 @@ export function apply(ctx) {
       properties: {
         format: {
           type: 'string',
-          enum: ['json', 'markdown', 'txt', 'html'],
+          enum: ['json', 'jsonl', 'markdown', 'txt', 'html'],
           description: '导出格式',
           default: 'markdown'
         },
@@ -167,6 +177,23 @@ export function apply(ctx) {
           type: 'boolean',
           description: '是否清理敏感信息',
           default: true
+        },
+        last: {
+          type: 'integer',
+          description: '仅导出最近 N 条消息'
+        },
+        from: {
+          type: 'integer',
+          description: '起始消息编号（含），与 to 配合使用'
+        },
+        to: {
+          type: 'integer',
+          description: '结束消息编号（含），与 from 配合使用'
+        },
+        autoName: {
+          type: 'boolean',
+          description: '未指定输出路径时自动生成带时间戳的文件名',
+          default: false
         }
       },
       required: []
@@ -208,6 +235,30 @@ export function apply(ctx) {
         name: 'no-sanitize',
         type: 'boolean',
         description: '不清理敏感信息'
+      },
+      {
+        name: 'last',
+        alias: 'l',
+        type: 'integer',
+        description: '仅导出最近 N 条消息',
+        default: null
+      },
+      {
+        name: 'from',
+        type: 'integer',
+        description: '起始消息编号（含）',
+        default: null
+      },
+      {
+        name: 'to',
+        type: 'integer',
+        description: '结束消息编号（含）',
+        default: null
+      },
+      {
+        name: 'auto-name',
+        type: 'boolean',
+        description: '未指定输出路径时自动生成带时间戳的文件名'
       }
     ],
     async execute(ctx, options) {
@@ -216,30 +267,26 @@ export function apply(ctx) {
         output = null,
         noMetadata = false,
         noTimestamps = false,
-        noSanitize = false
+        noSanitize = false,
+        last = null,
+        from = null,
+        to = null,
+        autoName = false
       } = options;
 
-      try {
-        const sessionData = await collectSessionData(ctx, !noMetadata, !noTimestamps, !noSanitize);
-        const content = formatSessionData(sessionData, format, !noMetadata, !noTimestamps);
-
-        if (noSanitize) {
-          console.warn('[Session Exporter] 警告：已关闭敏感信息清理，导出内容可能包含密钥等机密信息，请妥善保管导出文件');
-        }
-
-        if (output) {
-          // 写入文件（路径被限制在当前工作目录内）
-          const target = await writeOutputFile(output, content);
-          return `会话内容已导出到: ${target}`;
-        } else {
-          // 直接返回内容
-          return content;
-        }
-      } catch (error) {
-        console.error('导出会话失败:', error);
-        if (error instanceof SafeError) throw error;
-        throw new Error('导出会话失败，详细原因请查看日志');
-      }
+      // 统一委托给工具入口，保证工具与命令行为一致
+      return exportSession({
+        ctx,
+        format,
+        outputPath: output,
+        includeMetadata: !noMetadata,
+        includeTimestamps: !noTimestamps,
+        sanitize: !noSanitize,
+        last,
+        from,
+        to,
+        autoName
+      });
     }
   });
 
@@ -251,6 +298,71 @@ export function apply(ctx) {
   ctx.on('dispose', () => {
     console.log('[Session Exporter] 插件已卸载');
   });
+}
+
+/**
+ * 按范围过滤消息：
+ * - last: 仅保留最近 N 条
+ * - from/to: 按消息编号闭区间截取
+ * last 优先于 from/to；均未提供时原样返回
+ */
+function applyRange(messages, { last, from, to } = {}) {
+  if (last != null) {
+    const n = Number(last);
+    if (!Number.isInteger(n) || n <= 0) {
+      throw new SafeError('last 必须为正整数');
+    }
+    return messages.slice(-n);
+  }
+  if (from != null || to != null) {
+    const start = from == null ? 0 : Number(from);
+    const end = to == null ? messages.length - 1 : Number(to);
+    if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end < start) {
+      throw new SafeError('from/to 必须为有效的消息编号区间');
+    }
+    return messages.slice(start, end + 1);
+  }
+  return messages;
+}
+
+/** 各格式对应的默认文件扩展名 */
+const FORMAT_EXT = { json: 'json', jsonl: 'jsonl', markdown: 'md', html: 'html', txt: 'txt' };
+
+/** 1.1.0: 自动生成带时间戳的导出文件名，如 session-20260904-103000.md */
+function autoFileName(format) {
+  const ext = FORMAT_EXT[String(format).toLowerCase()] || 'txt';
+  const now = new Date();
+  const p = (x) => String(x).padStart(2, '0');
+  const stamp = `${now.getFullYear()}${p(now.getMonth() + 1)}${p(now.getDate())}-${p(now.getHours())}${p(now.getMinutes())}${p(now.getSeconds())}`;
+  return `session-${stamp}.${ext}`;
+}
+
+/** 1.1.0: 单文件大小上限 10MB，超出时提示缩小导出范围 */
+const MAX_EXPORT_BYTES = 10 * 1024 * 1024;
+function ensureSizeLimit(content) {
+  if (Buffer.byteLength(content, 'utf-8') > MAX_EXPORT_BYTES) {
+    throw new SafeError('导出内容超过 10MB 上限，请使用 last 或 from/to 参数缩小导出范围');
+  }
+}
+
+/** 1.1.0: 角色显示名，支持工具调用与系统消息 */
+function roleLabel(role) {
+  const labels = { user: '用户', assistant: 'AI', tool: '工具调用', system: '系统' };
+  return labels[role] || (role === 'user' ? '用户' : 'AI');
+}
+
+/**
+ * 1.1.0: 格式化为 JSONL（每行一个 JSON 对象，便于程序化处理）
+ */
+function formatAsJsonl(data, includeMetadata) {
+  const lines = [];
+  if (includeMetadata && data.metadata) {
+    lines.push(JSON.stringify({ type: 'metadata', ...data.metadata }));
+  }
+  data.messages.forEach((msg) => {
+    lines.push(JSON.stringify({ type: 'message', ...msg }));
+  });
+  return lines.join('\n') + '\n';
 }
 
 /**
@@ -330,6 +442,9 @@ function formatSessionData(data, format, includeMetadata, includeTimestamps) {
     case 'json':
       return JSON.stringify(data, null, 2);
 
+    case 'jsonl':
+      return formatAsJsonl(data, includeMetadata);
+
     case 'markdown':
       return formatAsMarkdown(data, includeMetadata, includeTimestamps);
 
@@ -369,7 +484,7 @@ function formatAsMarkdown(data, includeMetadata, includeTimestamps) {
         ? `\n*${new Date(msg.timestamp).toLocaleString()}*`
         : '';
 
-      md += `### ${msg.role === 'user' ? '用户' : 'AI'}${timestamp}\n\n`;
+      md += `### ${roleLabel(msg.role)}${timestamp}\n\n`;
       md += `${msg.content}\n\n---\n\n`;
     });
   }
@@ -430,6 +545,15 @@ function formatAsHtml(data, includeMetadata, includeTimestamps) {
         .parameters { margin-top: 10px; }
         .parameters ul { margin: 0; padding-left: 20px; }
         hr { border: none; border-top: 1px solid #dee2e6; margin: 30px 0; }
+        @media (prefers-color-scheme: dark) {
+            body { background-color: #1e1e1e; color: #d4d4d4; }
+            .header { background-color: #2a2a2a; }
+            .message { background-color: #252526; }
+            .message h3 { color: #9cdcfe; }
+            .tool, .command { background-color: #2d2d30; }
+            .timestamp { color: #808080; }
+            hr { border-top-color: #3e3e42; }
+        }
     </style>
 </head>
 <body>`;
@@ -453,7 +577,7 @@ function formatAsHtml(data, includeMetadata, includeTimestamps) {
       const roleClass = msg.role === 'user' ? 'user' : 'ai';
       html += `
         <div class="message ${roleClass}">
-            <h3>${msg.role === 'user' ? '用户' : 'AI'}</h3>
+            <h3>${escapeHtml(roleLabel(msg.role))}</h3>
             <div>${escapeHtml(msg.content == null ? '' : msg.content).replace(/\n/g, '<br>')}</div>`;
 
       if (includeTimestamps && msg.timestamp) {
@@ -527,7 +651,7 @@ function formatAsText(data, includeMetadata, includeTimestamps) {
   if (data.messages.length > 0) {
     txt += '=== 消息历史 ===\n\n';
     data.messages.forEach(msg => {
-      const role = msg.role === 'user' ? '用户' : 'AI';
+      const role = roleLabel(msg.role);
       const timestamp = includeTimestamps && msg.timestamp
         ? `\n[${new Date(msg.timestamp).toLocaleString()}]`
         : '';

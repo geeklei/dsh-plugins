@@ -318,3 +318,109 @@ if (typeof global !== 'undefined') {
 } else if (typeof window !== 'undefined') {
   window.exportSession = mockExportFunction;
 }
+describe('1.1.0 新功能', () => {
+  // 独立 mock：新用例代码块位于外层 describe 作用域之外
+  const mockCtx = {
+    session: {
+      history: [
+        { role: 'user', content: '你好，我想了解如何使用这个插件？' },
+        { role: 'assistant', content: '你好！dsh-session-exporter 插件可以帮助你导出会话内容。' }
+      ]
+    },
+    tools: { registry: new Map() },
+    commands: { registry: new Map() }
+  };
+
+  it('应该支持 last 参数只导出最近 N 条消息', async () => {
+    const result = await exportSession({
+      ctx: mockCtx,
+      format: 'json',
+      last: 1
+    });
+
+    const data = JSON.parse(result);
+    expect(data.messages).to.have.length(1);
+    expect(data.messages[0].content).to.include('dsh-session-exporter 插件可以帮助你导出会话内容');
+  });
+
+  it('应该支持 from/to 区间导出', async () => {
+    const result = await exportSession({
+      ctx: mockCtx,
+      format: 'json',
+      from: 0,
+      to: 0
+    });
+
+    const data = JSON.parse(result);
+    expect(data.messages).to.have.length(1);
+    expect(data.messages[0].content).to.include('你好，我想了解如何使用这个插件');
+  });
+
+  it('应该拒绝非法的 last 参数', async () => {
+    try {
+      await exportSession({ ctx: mockCtx, format: 'json', last: 0 });
+      expect.fail('应该抛出错误');
+    } catch (error) {
+      expect(error.message).to.include('last 必须为正整数');
+    }
+  });
+
+  it('应该拒绝非法的 from/to 区间', async () => {
+    try {
+      await exportSession({ ctx: mockCtx, format: 'json', from: 5, to: 1 });
+      expect.fail('应该抛出错误');
+    } catch (error) {
+      expect(error.message).to.include('from/to 必须为有效的消息编号区间');
+    }
+  });
+
+  it('应该支持 jsonl 格式导出', async () => {
+    const result = await exportSession({
+      ctx: mockCtx,
+      format: 'jsonl'
+    });
+
+    const lines = result.trim().split('\n').map((l) => JSON.parse(l));
+    expect(lines[0].type).to.equal('metadata');
+    expect(lines.filter((l) => l.type === 'message')).to.have.length(2);
+  });
+
+  it('工具调用和系统消息应该有独立角色名', async () => {
+    const ctxWithTool = {
+      ...mockCtx,
+      session: {
+        history: [
+          { role: 'tool', content: '工具返回结果' },
+          { role: 'system', content: '系统提示' }
+        ]
+      }
+    };
+
+    const md = await exportSession({ ctx: ctxWithTool, format: 'markdown', includeMetadata: false });
+    expect(md).to.include('### 工具调用');
+    expect(md).to.include('### 系统');
+
+    const html = await exportSession({ ctx: ctxWithTool, format: 'html', includeMetadata: false });
+    expect(html).to.include('>工具调用<');
+    expect(html).to.include('>系统<');
+  });
+
+  it('autoName 应该自动生成带时间戳的输出路径', async () => {
+    const result = await exportSession({
+      ctx: mockCtx,
+      format: 'markdown',
+      autoName: true
+    });
+
+    expect(result).to.match(/会话内容已导出到: .+session-\d{8}-\d{6}\.md$/);
+  });
+
+  it('HTML 导出应包含暗色主题支持', async () => {
+    const result = await exportSession({
+      ctx: mockCtx,
+      format: 'html'
+    });
+
+    expect(result).to.include('prefers-color-scheme: dark');
+  });
+});
