@@ -1,0 +1,38 @@
+{
+  "name": "dsh-diff-writer",
+  "version": "0.1.0",
+  "description": "Precise file editing for DeepSeek Harness: apply search/replace patches to files instead of full-file rewrites, minimizing accidental changes.",
+  "type": "module",
+  "main": "index.js",
+  "files": [
+    "index.js",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "keywords": [
+    "dsh",
+    "plugin",
+    "patch",
+    "editing",
+    "diff"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@deepseek-ai/dsh-tools": "0.1.1-rc.2"
+  },
+  "scripts": {
+    "test": "node test-plugin.js",
+    "prepublishOnly": "npm test"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "private": false,
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public",
+    "tag": "latest"
+  }
+}

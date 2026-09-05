@@ -1,0 +1,3 @@
+- insert:
+    - id: diff-writer
+      name: "dsh-diff-writer"
