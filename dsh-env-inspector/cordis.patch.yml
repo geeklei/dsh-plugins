@@ -1,0 +1,3 @@
+- insert:
+    - id: env-inspector
+      name: "dsh-env-inspector"

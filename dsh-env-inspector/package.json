@@ -1,0 +1,37 @@
+{
+  "name": "dsh-env-inspector",
+  "version": "0.1.0",
+  "description": "Environment inspector for DeepSeek Harness: versions, PATH, sanitized env vars. Sensitive values are always masked.",
+  "type": "module",
+  "main": "index.js",
+  "files": [
+    "index.js",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "keywords": [
+    "dsh",
+    "plugin",
+    "environment",
+    "diagnostics"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@deepseek-ai/dsh-tools": "0.1.1-rc.2"
+  },
+  "scripts": {
+    "test": "node test-plugin.js",
+    "prepublishOnly": "npm test"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "private": false,
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public",
+    "tag": "latest"
+  }
+}
