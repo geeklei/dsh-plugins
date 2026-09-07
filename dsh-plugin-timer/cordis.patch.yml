@@ -1,0 +1,3 @@
+- insert:
+    - id: plugin-timer
+      name: "dsh-plugin-timer"

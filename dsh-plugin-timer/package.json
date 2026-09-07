@@ -1,0 +1,37 @@
+{
+  "name": "dsh-plugin-timer",
+  "version": "0.1.0",
+  "description": "Timer and reminder plugin for DeepSeek Harness: schedule timers with natural durations, persist across sessions via .timers.json, detect due timers on listing.",
+  "type": "module",
+  "main": "index.js",
+  "files": [
+    "index.js",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "keywords": [
+    "dsh",
+    "plugin",
+    "timer",
+    "reminder"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@deepseek-ai/dsh-tools": "0.1.1-rc.2"
+  },
+  "scripts": {
+    "test": "node test-plugin.js",
+    "prepublishOnly": "npm test"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "private": false,
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public",
+    "tag": "latest"
+  }
+}
