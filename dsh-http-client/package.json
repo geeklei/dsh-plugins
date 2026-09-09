@@ -1,6 +1,6 @@
 {
   "name": "dsh-http-client",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Guarded HTTP client for DeepSeek Harness: domain allowlist, timeout, response size cap and truncation. Only whitelisted hosts are reachable.",
   "type": "module",
   "main": "index.js",
