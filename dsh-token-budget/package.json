@@ -1,5 +1,5 @@
 {
-  "name": "dsh-token-budget",
+  "name": "dsh-token-budget-tools",
   "version": "0.1.0",
   "description": "Token budget tools for DeepSeek Harness: split long text into chunks within a token budget (paragraph-aware), extract sections by heading, count estimated tokens. Estimation matches dsh-text-stats.",
   "type": "module",

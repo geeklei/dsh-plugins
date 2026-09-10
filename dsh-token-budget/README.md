@@ -1,11 +1,11 @@
-# dsh-token-budget
+# dsh-token-budget-tools
 
 Token 预算工具插件（v0.1.0）：估算 token、按预算分块长文本、按标题提取章节。估算口径与 `dsh-text-stats` 完全一致（CJK 约 0.6 token/字，ASCII 约 0.25/字符）。
 
 ## 安装
 
 ```bash
-npm install dsh-token-budget
+npm install dsh-token-budget-tools
 ```
 
 ## 工具
