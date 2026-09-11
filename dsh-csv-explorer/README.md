@@ -32,6 +32,46 @@ npm install dsh-csv-explorer
 
 **每列输出**：`count`（数值单元格数）、非数值个数、`min` / `max` / `mean` / `median`（偶数行取均值）/ `std`（总体标准差）/ `sum`。非数值列标注跳过。
 
+## 使用步骤
+
+### 1. 准备数据
+
+CSV 文件放在**工作目录内**（如 `./data/sales.csv`），或直接把 CSV 内容作为 `text` 传入。注意：本插件不解析 Excel（.xlsx）二进制，Excel 数据请先另存为 CSV。
+
+### 2. 先预览再统计
+
+推荐先 `csv_preview` 确认结构（分隔符、表头、行数），再 `csv_stats` 统计：
+
+```
+csv_preview({ file: "data/sales.csv", rows: 5 })
+csv_stats({ file: "data/sales.csv" })
+```
+
+### 3. 只统计关心的列
+
+`columns` 支持列名或 0 基下标（混用）：
+
+```
+csv_stats({ file: "data/sales.csv", columns: ["amount", "3"] })
+```
+
+列名不确定时先用不带 `columns` 的 `csv_stats`，输出会标注每列下标与是否为数值列。
+
+### 4. 解读输出
+
+- 预览开头会标注 `分隔符`（自动嗅探或显式指定）与 `总行数`，出现“数据行超过 50000”提示说明统计只覆盖前 5 万行
+- 统计里 `非数值 N 个` 表示该列有 N 个单元格无法识别为数字（含空单元格）
+- `median` 在偶数个数值时取中间两数均值；`std` 为总体标准差
+- 出现 `[输出已截断]` 标记说明内容不完整，缩小 `rows` 或 `columns` 后重试
+
+### 5. 非逗号分隔的文件
+
+自动嗅探覆盖 `,` `;` Tab `|` 四种；嗅探错了（如单列文件里恰好含逗号）用 `delimiter` 显式指定：
+
+```
+csv_preview({ file: "data.tsv", delimiter: "\t" })
+```
+
 ## 限制
 
 - 输入上限 2MB / 5 万行（超出部分不计入统计并明确提示）

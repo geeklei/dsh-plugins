@@ -1,6 +1,6 @@
 {
   "name": "dsh-csv-explorer",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "CSV explorer for DeepSeek Harness: delimiter-aware preview with row counts and numeric column statistics. Lightweight, no Excel parsing.",
   "type": "module",
   "main": "index.js",
