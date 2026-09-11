@@ -1,0 +1,3 @@
+- insert:
+    - id: csv-explorer
+      name: "dsh-csv-explorer"

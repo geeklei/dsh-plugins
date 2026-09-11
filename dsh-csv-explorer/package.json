@@ -1,0 +1,39 @@
+{
+  "name": "dsh-csv-explorer",
+  "version": "0.1.0",
+  "description": "CSV explorer for DeepSeek Harness: delimiter-aware preview with row counts and numeric column statistics. Lightweight, no Excel parsing.",
+  "type": "module",
+  "main": "index.js",
+  "files": [
+    "index.js",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "keywords": [
+    "dsh",
+    "plugin",
+    "csv",
+    "data",
+    "statistics"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@deepseek-ai/dsh-tools": "0.1.1-rc.2",
+    "csv-parse": "^5.6.0"
+  },
+  "scripts": {
+    "test": "node test-plugin.js",
+    "prepublishOnly": "npm test"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "private": false,
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public",
+    "tag": "latest"
+  }
+}
