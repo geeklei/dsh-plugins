@@ -1,0 +1,38 @@
+{
+  "name": "dsh-markdown-lint",
+  "version": "0.1.0",
+  "description": "Markdown linter for DeepSeek Harness: heading hierarchy, list indentation, and relative-link existence checks, with auto-fix for repairable issues.",
+  "type": "module",
+  "main": "index.js",
+  "files": [
+    "index.js",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "keywords": [
+    "dsh",
+    "plugin",
+    "markdown",
+    "lint",
+    "documentation"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@deepseek-ai/dsh-tools": "0.1.1-rc.2"
+  },
+  "scripts": {
+    "test": "node test-plugin.js",
+    "prepublishOnly": "npm test"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "private": false,
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public",
+    "tag": "latest"
+  }
+}

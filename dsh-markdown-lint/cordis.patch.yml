@@ -1,0 +1,3 @@
+- insert:
+    - id: markdown-lint
+      name: "dsh-markdown-lint"
