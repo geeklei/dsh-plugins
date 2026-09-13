@@ -1,0 +1,3 @@
+- insert:
+    - id: workspace-journal
+      name: "dsh-workspace-journal"

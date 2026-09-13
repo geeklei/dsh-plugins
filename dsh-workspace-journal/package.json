@@ -1,0 +1,38 @@
+{
+  "name": "dsh-workspace-journal",
+  "version": "0.1.0",
+  "description": "Workspace journal for DeepSeek Harness: append timestamped log entries with tags, read back by date range, tag or keyword. Human-readable monthly Markdown files.",
+  "type": "module",
+  "main": "index.js",
+  "files": [
+    "index.js",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "keywords": [
+    "dsh",
+    "plugin",
+    "journal",
+    "log",
+    "workflow"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@deepseek-ai/dsh-tools": "0.1.1-rc.2"
+  },
+  "scripts": {
+    "test": "node test-plugin.js",
+    "prepublishOnly": "npm test"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "private": false,
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public",
+    "tag": "latest"
+  }
+}

@@ -333,13 +333,31 @@ A: 使用 dsh-tools 提供的 schema 验证功能，或在 execute 函数中进�
 
 A: 可以，但需要注意安全性，避免路径遍历攻击，参考 `dsh-file-manager-cli` 的安全实践。
 
-## 示例参考
+## 已收录插件全景
 
-本项目包含以下示例插件：
+截至 2026-09-13，仓库共 16 个插件，全部发布到 npm（tag 触发 CI 自动发布）：
 
-1. **dsh-plugin-calculator** - 数学计算工具插件
-2. **dsh-text-stats** - 文本统计工具插件
-3. **dsh-file-manager-cli** - 文件管理命令插件
+| 插件 | 功能 | 代表工具 |
+|------|------|----------|
+| dsh-code-check | 代码检查 | check_code |
+| dsh-plugin-calculator | 数学计算 | calc |
+| dsh-text-stats | 文本统计（token 口径基准） | text_stats |
+| dsh-file-manager-cli | 文件管理 | fs_* |
+| dsh-plugin-todo | 待办清单 | todo_* |
+| dsh-session-exporter | 会话导出 | export_session |
+| dsh-git-helper | Git 只读查询 + 受控提交 | git_status/diff/log/branch/commit |
+| dsh-diff-writer | search/replace 精确文件补丁 | apply_patch |
+| dsh-env-inspector | 环境探针（敏感值脱敏） | inspect_env |
+| dsh-plugin-timer | 定时/提醒（.timers.json 持久化） | set/list/cancel_timer |
+| dsh-json-yaml-toolkit | JSON/YAML/TOML 互转与校验 | convert_format/query_json/validate_schema |
+| dsh-http-client | 受控 HTTP（域名白名单） | http_get/http_post |
+| dsh-csv-explorer | CSV 预览与数值列统计 | csv_preview/csv_stats |
+| dsh-markdown-lint | MD 检查与自动修复 | lint_markdown/fix_markdown |
+| dsh-workspace-journal | 工作区日志（月度 MD） | log_entry/read_journal |
+
+> 注：code-check / calculator / text-stats / file-manager-cli / todo / session-exporter 为首批基础插件；git-helper 至 workspace-journal 为 2026-09-04~13 十天批量迭代产出（每日一个，设计文档见各插件目录 README 与 git log）。
+
+**组合工作流建议**：git-helper（查状态）→ diff-writer（改文件）→ markdown-lint（查格式）→ journal（记结论）。
 
 ## 总结
 
